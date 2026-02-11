@@ -1,0 +1,316 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>OceanSwimmer Results Search</title>
+
+    <!-- DataTables (sorting + export) -->
+    <link rel="stylesheet"
+          href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
+    <link rel="stylesheet"
+          href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" />
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 2rem;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+        }
+
+        form {
+            margin-bottom: 1.5rem;
+        }
+
+        input {
+            padding: 0.4rem;
+            margin-right: 0.5rem;
+        }
+
+        button {
+            padding: 0.45rem 0.8rem;
+            cursor: pointer;
+        }
+
+        a {
+            color: #0066cc;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏊 Ocean Swimmer Results</h1>
+
+    <form id="searchForm">
+        <input type="text" id="forename" placeholder="Forename" />
+        <input type="text" id="surname" placeholder="Surname" />
+        <button type="submit">Search</button>
+    </form>
+
+    <div id="resultCount" style="margin-bottom: 0.5rem; font-weight: 600;"></div>
+
+    <table id="resultsTable" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <th>Race</th>
+                <th>Distance</th>
+                <th>Time</th>
+                <th>Name</th>
+                <th>Overall Pos</th>
+                <th>Overall %</th>
+                <th>Gender Pos</th>
+                <th>Gender %</th>        <!-- 👈 NEW -->
+                <th>Category Pos</th>
+                <th>Category %</th>      <!-- 👈 NEW -->
+            </tr>
+        </thead>
+
+
+        <tbody></tbody>
+    </table>
+
+    <div style="margin-bottom: 1em;">
+        <button onclick="loadRaces()">List all races</button>
+        <input id="raceSearch"
+               placeholder="Search races…"
+               onkeyup="filterRaces()"
+               style="margin-left: 10px;" />
+    </div>
+
+    <div id="raceList"></div>
+
+    <!-- JS deps -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+
+    <script>
+        const API_BASE = "http://localhost:5221/swims/search"; // change later to api.oceanswimmer.com.au
+        //const API_BASE = "https://api.oceanswimmer.com.au/swims/search";
+
+        let allRaces = [];
+
+
+        let table = $('#resultsTable').DataTable({
+            destroy: true,
+            autoWidth: false,
+            pageLength: 25,
+            columns: [
+                {
+                    data: "raceName",
+                    width: "35%",
+                    render: function (data, type, row) {
+                        const desc = row.raceDescription || row.raceName;
+
+                        return `
+                              <a href="#"
+                                 class="race-link"
+                                 data-raceid="${row.raceId}"
+                                 data-racedesc="${desc}">
+                                ${data}
+                              </a>`;
+                    }
+                },
+                { data: "distance" },
+                { data: "raceTime" },
+                {
+                    data: "fullName",
+                    width: "25%",
+                    render: function (data, type, row) {
+                        return `
+                          <a href="#"
+                             class="name-link"
+                             data-forename="${row.forename}"
+                             data-surname="${row.surname}">
+                            ${data}
+                          </a>`;
+                    }
+                },
+                { data: "overallPosition" },
+                {
+                    data: "overallPercentile",
+                    render: d => d != null ? `${d.toFixed(2)}%` : ""
+                },
+                { data: "genderPosition" },
+                {
+                    data: "genderPercentile",             // 👈 NEW
+                    render: d => d != null ? `${d.toFixed(2)}%` : ""
+                },
+                { data: "categoryPosition" },
+                {
+                    data: "categoryPercentile",           // 👈 NEW
+                    render: d => d != null ? `${d.toFixed(2)}%` : ""
+                }
+            ]
+
+            ,
+            dom: "Bfrtip",
+            buttons: ["csv"],
+            columnDefs: [
+                { targets: [4, 5, 6, 7, 8, 9], className: "dt-center" }
+            ]
+
+        });
+
+        $('#resultsTable').on('click', 'a.race-link', function (e) {
+            e.preventDefault();
+            searchByRace(
+                this.dataset.raceid,
+                this.dataset.racedesc
+            );
+        });
+
+        $(document).on("click", ".name-link", function (e) {
+            e.preventDefault();
+
+            const forename = $(this).data("forename");
+            const surname = $(this).data("surname");
+
+            // Clear race context
+            $("#resultCount").innerText = "";
+
+            // Run person search
+            searchByName(forename, surname);
+
+            // Scroll back to top
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+
+
+
+        async function loadRaces() {
+            const res = await fetch("/races");
+            allRaces = await res.json();
+            renderRaceList(allRaces);
+        }
+
+        function filterRaces() {
+            const q = document.getElementById("raceSearch").value.toLowerCase();
+
+            const filtered = allRaces.filter(r =>
+                r.raceDescription &&
+                r.raceDescription.toLowerCase().includes(q)
+            );
+
+            renderRaceList(filtered);
+        }
+
+        function renderRaceList(races) {
+            const container = document.getElementById("raceList");
+            container.innerHTML = "";
+
+            races.forEach(r => {
+                const div = document.createElement("div");
+
+                const a = document.createElement("a");
+                a.href = "#";
+                a.textContent = r.raceDescription;
+
+                a.dataset.raceId = r.raceId;
+                a.dataset.raceDescription = r.raceDescription;
+
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    searchByRace(
+                        a.dataset.raceId,
+                        a.dataset.raceDescription
+                    );
+                };
+
+                div.appendChild(a);
+                div.appendChild(
+                    document.createTextNode(` – ${r.distance ?? "?"} km · ${r.resultCount} results`)
+                );
+
+                container.appendChild(div);
+            });
+        }
+
+
+
+
+        async function runSearch(forename, surname) {
+            const params = new URLSearchParams();
+            if (forename) params.append("forename", forename);
+            if (surname) params.append("surname", surname);
+            params.append("pageSize", 250);
+
+            const res = await fetch(`${API_BASE}?${params.toString()}`);
+            const json = await res.json();
+
+            console.log("API response:", json);
+            console.log("First row:", json.results?.[0]);
+
+            document.getElementById("resultCount").innerText =
+                `${json.count} results returned`;
+
+
+            table.clear();
+            table.search("");
+            table.rows.add(json.results);
+            table.draw();
+            $('.dataTables_filter input').val("");
+        }
+
+        function searchByName(forename, surname) {
+            $("#forename").val(forename);
+            $("#surname").val(surname);
+            runSearch(forename, surname);
+        }
+
+        function searchByRace(raceId, raceDescription) {
+
+            if (!raceId) {
+                console.warn("searchByRace called with invalid raceId:", raceId);
+                return;
+            }
+
+            $("#forename").val("");
+            $("#surname").val("");
+
+            const params = new URLSearchParams();
+            params.append("raceId", raceId);
+            params.append("pageSize", 10000);
+
+            fetch(`${API_BASE}?${params.toString()}`)
+                .then(res => res.json())
+                .then(json => {
+
+                    const label = raceDescription || "Selected race";
+
+                    document.getElementById("resultCount").innerText =
+                        `Results for race: ${label} (${json.count})`;
+
+                    table.clear();
+                    table.search("");
+                    table.rows.add(json.results);
+                    table.draw();
+
+                    $('.dataTables_filter input').val("");
+
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                })
+                .catch(err => {
+                    console.error("Race search failed:", err);
+                });
+        }
+
+
+
+
+        $("#searchForm").on("submit", (e) => {
+            e.preventDefault();
+            runSearch(
+                $("#forename").val(),
+                $("#surname").val()
+            );
+        });
+    </script>
+
+</body>
+</html>
