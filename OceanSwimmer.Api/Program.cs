@@ -1,4 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
+using System.Globalization;
+
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -15,12 +17,18 @@ if (string.IsNullOrEmpty(connStr))
 }
 
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+
 
 app.MapGet("/swims/search", async (
     string? forename,
     string? surname,
     string? race,
     int ? raceId,
+    string ? category,
+    string? gender,
 
     int page = 1,
     int pageSize = 250) =>
@@ -47,27 +55,32 @@ app.MapGet("/swims/search", async (
 
     var cmd = new SqlCommand("""
         SELECT
-            raceid,                   -- 0 
-            RaceName,                 -- 1
-            Distance,                 -- 2
-            RaceTime,                 -- 3
-            Forename,                 -- 4
-            Surname,                  -- 5
-            FullName,                 -- 6
-            OverallPosition,          -- 7
-            OverallCompetitors,       -- 8
-            OverallPercentile,        -- 9
-            GenderPosition,           -- 10
-            GenderCompetitors,        -- 11
-            GenderPercentile,         -- 12
-            CategoryPosition,         -- 13
-            CategoryCompetitors,      -- 14
-            CategoryPercentile        -- 15
+            raceid,
+            RaceDate,
+            RaceName,
+            Distance,
+            RaceTime,
+            Category,
+            Sex,
+            Forename,
+            Surname,
+            FullName,
+            OverallPosition,
+            OverallCompetitors,
+            OverallPercentile,
+            GenderPosition,
+            GenderCompetitors,
+            GenderPercentile,
+            CategoryPosition,
+            CategoryCompetitors,
+            CategoryPercentile
         FROM dbo.vw_OceanSwims_Search
         WHERE
             (@surname  IS NULL OR Surname_Search  LIKE @surname COLLATE Latin1_General_CI_AI)
             AND (@forename IS NULL OR Forename_Search LIKE @forename COLLATE Latin1_General_CI_AI)
             AND (@raceId IS NULL OR raceid = @raceId)
+            AND (@category IS NULL OR Category = @category)
+            AND (@gender IS NULL OR Sex = @gender)
     
         ORDER BY RaceName, OverallPosition
         OFFSET @offset ROWS
@@ -85,6 +98,12 @@ app.MapGet("/swims/search", async (
     cmd.Parameters.AddWithValue("@race",
     string.IsNullOrWhiteSpace(race) ? DBNull.Value : race);
 
+    cmd.Parameters.AddWithValue("@gender", (object?)gender ?? DBNull.Value);
+
+    cmd.Parameters.AddWithValue("@category",
+    string.IsNullOrWhiteSpace(category) ? DBNull.Value : category);
+
+
     cmd.Parameters.AddWithValue("@offset", offset);
     cmd.Parameters.AddWithValue("@pageSize", pageSize);
 
@@ -98,31 +117,113 @@ app.MapGet("/swims/search", async (
     }
 
     using var rdr = await cmd.ExecuteReaderAsync();
+
+    // 🔹 Cache ordinals once
+    var ordRaceId = rdr.GetOrdinal("raceid");
+    var ordRaceDate = rdr.GetOrdinal("RaceDate");
+    var ordRaceName = rdr.GetOrdinal("RaceName");
+    var ordDistance = rdr.GetOrdinal("Distance");
+    var ordRaceTime = rdr.GetOrdinal("RaceTime");
+    var ordCategory = rdr.GetOrdinal("Category");
+    var ordSex = rdr.GetOrdinal("Sex");
+    var ordForename = rdr.GetOrdinal("Forename");
+    var ordSurname = rdr.GetOrdinal("Surname");
+    var ordFullName = rdr.GetOrdinal("FullName");
+    var ordOverallPosition = rdr.GetOrdinal("OverallPosition");
+    var ordOverallCompetitors = rdr.GetOrdinal("OverallCompetitors");
+    var ordOverallPercentile = rdr.GetOrdinal("OverallPercentile");
+    var ordGenderPosition = rdr.GetOrdinal("GenderPosition");
+    var ordGenderCompetitors = rdr.GetOrdinal("GenderCompetitors");
+    var ordGenderPercentile = rdr.GetOrdinal("GenderPercentile");
+    var ordCategoryPosition = rdr.GetOrdinal("CategoryPosition");
+    var ordCategoryCompetitors = rdr.GetOrdinal("CategoryCompetitors");
+    var ordCategoryPercentile = rdr.GetOrdinal("CategoryPercentile");
+
     while (await rdr.ReadAsync())
     {
         results.Add(new
         {
-            raceId = rdr.GetInt32(rdr.GetOrdinal("raceid")),
-            raceName = rdr["RaceName"] as string,
-            distance = rdr["Distance"] as decimal?,
-            raceTime = rdr["RaceTime"] as TimeSpan?,
-            forename = rdr["Forename"] as string,
-            surname = rdr["Surname"] as string,
-            fullName = rdr["FullName"] as string,
-            overallPosition = rdr["OverallPosition"] as int?,
-            overallCompetitors = rdr["OverallCompetitors"] as int?,
-            overallPercentile = rdr["OverallPercentile"] as decimal?,
-            genderPosition = rdr["GenderPosition"] as int?,
-            genderCompetitors = rdr["GenderCompetitors"] as int?,
-            genderPercentile = rdr["GenderPercentile"] as decimal?,
-            categoryPosition = rdr["CategoryPosition"] as int?,
-            categoryCompetitors = rdr["CategoryCompetitors"] as int?,
-            categoryPercentile = rdr["CategoryPercentile"] as decimal?
+            raceId = rdr.GetInt32(ordRaceId),
+
+            raceDate = rdr.IsDBNull(ordRaceDate)
+                ? (DateTime?)null
+                : rdr.GetDateTime(ordRaceDate),
+
+
+            raceName = rdr.IsDBNull(ordRaceName)
+                ? null
+                : rdr.GetString(ordRaceName),
+
+            distance = rdr.IsDBNull(ordDistance)
+                ? (decimal?)null
+                : rdr.GetDecimal(ordDistance),
+
+            raceTime = rdr.IsDBNull(ordRaceTime)
+                ? (TimeSpan?)null
+                : rdr.GetTimeSpan(ordRaceTime),
+
+            category = rdr.IsDBNull(ordCategory)
+                ? null
+                : rdr.GetString(ordCategory),
+
+            gender = rdr.IsDBNull(ordSex)
+                ? null
+                : rdr.GetString(ordSex).ToUpper().StartsWith("M")
+                    ? "Male"
+                    : rdr.GetString(ordSex).ToUpper().StartsWith("F")
+                        ? "Female"
+                        : rdr.GetString(ordSex),
+
+            forename = rdr.IsDBNull(ordForename)
+                ? null
+                : rdr.GetString(ordForename),
+
+            surname = rdr.IsDBNull(ordSurname)
+                ? null
+                : rdr.GetString(ordSurname),
+
+            fullName = rdr.IsDBNull(ordFullName)
+                ? null
+                : rdr.GetString(ordFullName),
+
+            overallPosition = rdr.IsDBNull(ordOverallPosition)
+                ? (int?)null
+                : rdr.GetInt32(ordOverallPosition),
+
+            overallCompetitors = rdr.IsDBNull(ordOverallCompetitors)
+                ? (int?)null
+                : rdr.GetInt32(ordOverallCompetitors),
+
+            overallPercentile = rdr.IsDBNull(ordOverallPercentile)
+                ? (decimal?)null
+                : rdr.GetDecimal(ordOverallPercentile),
+
+            genderPosition = rdr.IsDBNull(ordGenderPosition)
+                ? (int?)null
+                : rdr.GetInt32(ordGenderPosition),
+
+            genderCompetitors = rdr.IsDBNull(ordGenderCompetitors)
+                ? (int?)null
+                : rdr.GetInt32(ordGenderCompetitors),
+
+            genderPercentile = rdr.IsDBNull(ordGenderPercentile)
+                ? (decimal?)null
+                : rdr.GetDecimal(ordGenderPercentile),
+
+            categoryPosition = rdr.IsDBNull(ordCategoryPosition)
+                ? (int?)null
+                : rdr.GetInt32(ordCategoryPosition),
+
+            categoryCompetitors = rdr.IsDBNull(ordCategoryCompetitors)
+                ? (int?)null
+                : rdr.GetInt32(ordCategoryCompetitors),
+
+            categoryPercentile = rdr.IsDBNull(ordCategoryPercentile)
+                ? (decimal?)null
+                : rdr.GetDecimal(ordCategoryPercentile)
         });
-
-
-
     }
+
 
     return Results.Ok(new
     {
@@ -144,34 +245,52 @@ app.MapGet("/races", async (string? q) =>
         SELECT
             raceid,
             RaceName,
-            RaceDescription,
+            RaceDate,
             Distance,
             COUNT(*) AS ResultCount
         FROM dbo.vw_OceanSwims_Search
-        WHERE (@q IS NULL OR RaceDescription LIKE '%' + @q + '%')
+        WHERE (@q IS NULL OR RaceName LIKE '%' + @q + '%')
         GROUP BY
             raceid,
             RaceName,
-            RaceDescription,
+            RaceDate,
             Distance
         ORDER BY
-            RaceDescription";
+            RaceDate DESC, RaceName";
 
     using var cmd = new SqlCommand(sql, conn);
     cmd.Parameters.AddWithValue("@q", (object?)q ?? DBNull.Value);
 
     using var rdr = await cmd.ExecuteReaderAsync();
+    var ordRaceId = rdr.GetOrdinal("raceid");
+    var ordRaceName = rdr.GetOrdinal("RaceName");
+    var ordRaceDate = rdr.GetOrdinal("RaceDate");
+    var ordDistance = rdr.GetOrdinal("Distance");
+    var ordResultCount = rdr.GetOrdinal("ResultCount");
+
     while (await rdr.ReadAsync())
     {
         results.Add(new
         {
-            raceId = (int)rdr["raceid"],
-            raceName = rdr["RaceName"] as string,
-            raceDescription = rdr["RaceDescription"] as string,
-            distance = rdr["Distance"] as decimal?,
-            resultCount = (int)rdr["ResultCount"]
+            raceId = rdr.GetInt32(ordRaceId),
+
+            raceName = rdr.IsDBNull(ordRaceName)
+                ? null
+                : rdr.GetString(ordRaceName),
+
+            raceDate = rdr.IsDBNull(ordRaceDate)
+                ? null
+                : rdr.GetDateTime(ordRaceDate)
+                      .ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture),
+
+            distance = rdr.IsDBNull(ordDistance)
+                ? (decimal?)null
+                : rdr.GetDecimal(ordDistance),
+
+            resultCount = rdr.GetInt32(ordResultCount)
         });
     }
+
 
     return Results.Ok(results);
 });

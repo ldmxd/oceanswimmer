@@ -57,17 +57,25 @@
         <thead>
             <tr>
                 <th>Race</th>
+                <th>Date</th>
                 <th>Distance</th>
                 <th>Time</th>
+
                 <th>Name</th>
+
+                <th>Category</th>
+                <th>Category Pos</th>
+                <th>Category %</th>
+
                 <th>Overall Pos</th>
                 <th>Overall %</th>
+
+                <th>Gender</th>
                 <th>Gender Pos</th>
-                <th>Gender %</th>        <!-- 👈 NEW -->
-                <th>Category Pos</th>
-                <th>Category %</th>      <!-- 👈 NEW -->
+                <th>Gender %</th>
             </tr>
         </thead>
+
 
 
         <tbody></tbody>
@@ -101,61 +109,132 @@
             autoWidth: false,
             pageLength: 25,
             columns: [
+
+                // 1️⃣ Race
                 {
                     data: "raceName",
                     width: "35%",
                     render: function (data, type, row) {
-                        const desc = row.raceDescription || row.raceName;
-
                         return `
-                              <a href="#"
-                                 class="race-link"
-                                 data-raceid="${row.raceId}"
-                                 data-racedesc="${desc}">
-                                ${data}
-                              </a>`;
+              <a href="#"
+                 class="race-link"
+                 data-raceid="${row.raceId}"
+                 data-racedesc="${row.raceName}">
+                ${data}
+              </a>`;
                     }
                 },
-                { data: "distance" },
-                { data: "raceTime" },
+
+                // 2️⃣ Date
+                {
+                    data: "raceDate",
+                    width: "10%",
+                    render: function (data, type) {
+                        if (!data) return "";
+
+                        if (type === "display") {
+                            const d = new Date(data);
+                            return d.toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric"
+                            });
+                        }
+
+                        return data; // 👈 raw value used for sorting
+                    }
+                },
+
+                // 3️⃣ Distance
+                { data: "distance", width: "6%" },
+
+                // 4️⃣ Time
+                { data: "raceTime", width: "6%" },
+
+                // 5️⃣ Name
                 {
                     data: "fullName",
-                    width: "25%",
+                    width: "20%",
                     render: function (data, type, row) {
                         return `
-                          <a href="#"
-                             class="name-link"
-                             data-forename="${row.forename}"
-                             data-surname="${row.surname}">
-                            ${data}
-                          </a>`;
+              <a href="#"
+                 class="name-link"
+                 data-forename="${row.forename}"
+                 data-surname="${row.surname}">
+                ${data}
+              </a>`;
                     }
                 },
-                { data: "overallPosition" },
+
+                // 6️⃣ Category
+                {
+                    data: "category",
+                    render: function (data, type, row) {
+                        return `
+                            <a href="#"
+                               class="category-link"
+                               data-raceid="${row.raceId}"
+                               data-category="${data}"
+                               data-gender="${row.gender}">
+                               ${data}
+                            </a>`;
+                    }
+                }
+,
+
+                // 7️⃣ Category Pos
+                { data: "categoryPosition", width: "5%" },
+
+                // 8️⃣ Category %
+                {
+                    data: "categoryPercentile",
+                    width: "5%",
+                    render: d => d != null ? `${d.toFixed(2)}%` : ""
+                },
+
+                // 9️⃣ Overall Pos
+                { data: "overallPosition", width: "5%" },
+
+                // 🔟 Overall %
                 {
                     data: "overallPercentile",
+                    width: "5%",
                     render: d => d != null ? `${d.toFixed(2)}%` : ""
                 },
-                { data: "genderPosition" },
+
+                { data: "gender" }, 
+                // 1️⃣1️⃣ Gender Pos
+                { data: "genderPosition", width: "5%" },
+
+                // 1️⃣2️⃣ Gender %
                 {
-                    data: "genderPercentile",             // 👈 NEW
-                    render: d => d != null ? `${d.toFixed(2)}%` : ""
-                },
-                { data: "categoryPosition" },
-                {
-                    data: "categoryPercentile",           // 👈 NEW
+                    data: "genderPercentile",
+                    width: "5%",
                     render: d => d != null ? `${d.toFixed(2)}%` : ""
                 }
-            ]
-
-            ,
+            ],
             dom: "Bfrtip",
             buttons: ["csv"],
+            order: [
+                [1, "desc"],   // Date
+                [8, "asc"]     // Overall Pos
+            ],
             columnDefs: [
                 { targets: [4, 5, 6, 7, 8, 9], className: "dt-center" }
             ]
 
         });
+
+        $('#resultsTable').on('click', 'a.category-link', function (e) {
+            e.preventDefault();
+
+            searchByRaceAndCategory(
+                this.dataset.raceid,
+                this.dataset.category,
+                this.dataset.gender
+            );
+        });
+
 
         $('#resultsTable').on('click', 'a.race-link', function (e) {
             e.preventDefault();
@@ -193,12 +272,13 @@
             const q = document.getElementById("raceSearch").value.toLowerCase();
 
             const filtered = allRaces.filter(r =>
-                r.raceDescription &&
-                r.raceDescription.toLowerCase().includes(q)
+                r.raceName &&
+                r.raceName.toLowerCase().includes(q)
             );
 
             renderRaceList(filtered);
         }
+
 
         function renderRaceList(races) {
             const container = document.getElementById("raceList");
@@ -209,22 +289,27 @@
 
                 const a = document.createElement("a");
                 a.href = "#";
-                a.textContent = r.raceDescription;
+
+                // 👇 Use raceName now
+                a.textContent = r.raceName;
 
                 a.dataset.raceId = r.raceId;
-                a.dataset.raceDescription = r.raceDescription;
+                a.dataset.raceName = r.raceName;
 
                 a.onclick = (e) => {
                     e.preventDefault();
                     searchByRace(
                         a.dataset.raceId,
-                        a.dataset.raceDescription
+                        a.dataset.raceName
                     );
                 };
 
                 div.appendChild(a);
+
                 div.appendChild(
-                    document.createTextNode(` – ${r.distance ?? "?"} km · ${r.resultCount} results`)
+                    document.createTextNode(
+                        ` – ${r.raceDate ?? ""} · ${r.distance ?? "?"} km · ${r.resultCount} results`
+                    )
                 );
 
                 container.appendChild(div);
@@ -232,6 +317,27 @@
         }
 
 
+
+        function searchByRaceAndCategory(raceId, category, gender) {
+
+            const params = new URLSearchParams();
+            params.append("raceId", raceId);
+            params.append("category", category);
+            if (gender)
+                params.append("gender", gender);
+            params.append("pageSize", 10000);
+
+            fetch(`${API_BASE}?${params.toString()}`)
+                .then(res => res.json())
+                .then(json => {
+                    document.getElementById("resultCount").innerText =
+                        `Results for ${category} (${json.count})`;
+
+                    table.clear();
+                    table.rows.add(json.results);
+                    table.draw();
+                });
+        }
 
 
         async function runSearch(forename, surname) {
