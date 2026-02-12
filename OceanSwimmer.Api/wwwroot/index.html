@@ -335,8 +335,11 @@
                         `Results for ${category} (${json.count})`;
 
                     table.clear();
+                    table.search("");
                     table.rows.add(json.results);
                     table.draw();
+
+                    window.scrollTo({ top: 0, behavior: "smooth" });
                 });
         }
 

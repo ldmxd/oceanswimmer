@@ -168,11 +168,7 @@ app.MapGet("/swims/search", async (
 
             gender = rdr.IsDBNull(ordSex)
                 ? null
-                : rdr.GetString(ordSex).ToUpper().StartsWith("M")
-                    ? "Male"
-                    : rdr.GetString(ordSex).ToUpper().StartsWith("F")
-                        ? "Female"
-                        : rdr.GetString(ordSex),
+                : rdr.GetString(ordSex),
 
             forename = rdr.IsDBNull(ordForename)
                 ? null
