@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System.Globalization;
+using Dapper;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,55 @@ if (string.IsNullOrEmpty(connStr))
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+
+app.MapPost("/api/feedback", async (HttpRequest request) =>
+{
+    var form = await request.ReadFormAsync();
+
+    var name = form["FeedbackName"];
+    var email = form["FeedbackEmail"];
+    var type = form["RequestType"];
+    var message = form["FeedbackMessage"];
+    var pageUrl = form["PageUrl"];
+
+    using var conn = new SqlConnection(connStr);
+/*
+var sqlUser = await conn.QuerySingleAsync<string>("SELECT USER_NAME()");
+return Results.Ok(sqlUser);
+});
+*/
+await conn.ExecuteAsync(@"
+        INSERT INTO dbo.Feedback
+        (
+            FeedbackName,
+            FeedbackEmail,
+            RequestType,
+            FeedbackMessage,
+            PageUrl
+        )
+        VALUES
+        (
+            @name,
+            @email,
+            @type,
+            @message,
+            @pageUrl
+        )",
+            new { name, email, type, message, pageUrl });
+
+            return Results.Redirect("/feedback-thanks.html");
+        });
+
+app.MapGet("/api/race-count", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+
+    var count = await conn.QuerySingleAsync<int>(
+        "SELECT COUNT(DISTINCT RaceId) FROM dbo.OceanSwims"
+    );
+
+    return Results.Ok(count);
+});
 
 
 app.MapGet("/swims/search", async (

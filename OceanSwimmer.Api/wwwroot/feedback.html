@@ -1,0 +1,89 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>OceanSwimmer Feedback</title>
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 30px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        form {
+            max-width: 600px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 6px;
+            margin-top: 4px;
+            margin-bottom: 14px;
+            border: 1px solid #aaa;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #3b6fb6;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background: #2f5c99;
+            }
+    </style>
+</head>
+<body>
+
+    <h1>🏊 Ocean Swimmer Results</h1>
+
+    <h2>Feedback / Requests</h2>
+
+    <form method="post" action="/api/feedback">
+
+        <label>Name</label>
+        <input type="text" name="FeedbackName">
+
+        <label>Email (optional)</label>
+        <input type="email" name="FeedbackEmail">
+
+        <label>Type</label>
+        <select name="RequestType">
+            <option value="General">General Feedback</option>
+            <option value="IncorrectResult">Incorrect Result</option>
+            <option value="MissingResult">Missing Result</option>
+            <option value="FeatureRequest">Feature Request</option>
+        </select>
+
+        <label>What would you like us to fix or improve?</label>
+<textarea name="FeedbackMessage" rows="6" required></textarea>
+
+        <input type="hidden" name="PageUrl" id="PageUrl">
+
+        <button type="submit">Send Feedback</button>
+
+    </form>
+
+    <script>
+        document.getElementById("PageUrl").value = window.location.href;
+    </script>
+
+
+    <p><a href="/">← Back to results</a></p>
+
+</body>
+</html>

@@ -39,11 +39,20 @@
             cursor: pointer;
             text-decoration: underline;
         }
+
+        #raceCount strong {
+            color: #333;
+            font-size: 13px;
+            margin-top: -5px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
 
     <h1>🏊 Ocean Swimmer Results</h1>
+
+    <div id="raceCount" style="color:#666; margin-bottom:15px;"></div>
 
     <form id="searchForm">
         <input type="text" id="forename" placeholder="Forename" />
@@ -81,6 +90,11 @@
         <tbody></tbody>
     </table>
 
+    <p>
+        Found an issue or want to suggest a feature?
+        <a href="/feedback.html">Send feedback</a>
+    </p>
+
     <div style="margin-bottom: 1em;">
         <button onclick="loadRaces()">List all races</button>
         <input id="raceSearch"
@@ -117,12 +131,12 @@
                     width: "35%",
                     render: function (data, type, row) {
                         return `
-              <a href="#"
-                 class="race-link"
-                 data-raceid="${row.raceId}"
-                 data-racedesc="${row.raceName}">
-                ${data}
-              </a>`;
+                                      <a href="#"
+                                         class="race-link"
+                                         data-raceid="${row.raceId}"
+                                         data-racedesc="${row.raceName}">
+                                        ${data}
+                                      </a>`;
                     }
                 },
 
@@ -158,12 +172,12 @@
                     width: "20%",
                     render: function (data, type, row) {
                         return `
-              <a href="#"
-                 class="name-link"
-                 data-forename="${row.forename}"
-                 data-surname="${row.surname}">
-                ${data}
-              </a>`;
+                                      <a href="#"
+                                         class="name-link"
+                                         data-forename="${row.forename}"
+                                         data-surname="${row.surname}">
+                                        ${data}
+                                      </a>`;
                     }
                 },
 
@@ -172,16 +186,16 @@
                     data: "category",
                     render: function (data, type, row) {
                         return `
-                            <a href="#"
-                               class="category-link"
-                               data-raceid="${row.raceId}"
-                               data-category="${data}"
-                               data-gender="${row.gender}">
-                               ${data}
-                            </a>`;
+                                                    <a href="#"
+                                                       class="category-link"
+                                                       data-raceid="${row.raceId}"
+                                                       data-category="${data}"
+                                                       data-gender="${row.gender}">
+                                                       ${data}
+                                                    </a>`;
                     }
                 }
-,
+                ,
 
                 // 7️⃣ Category Pos
                 { data: "categoryPosition", width: "5%" },
@@ -203,7 +217,7 @@
                     render: d => d != null ? `${d.toFixed(2)}%` : ""
                 },
 
-                { data: "gender" }, 
+                { data: "gender" },
                 // 1️⃣1️⃣ Gender Pos
                 { data: "genderPosition", width: "5%" },
 
@@ -420,6 +434,24 @@
                 $("#surname").val()
             );
         });
+    </script>
+
+
+    <script>
+        console.log("script loaded");
+
+        fetch('/api/race-count')
+            .then(res => res.json())
+            .then(count => {
+                console.log("count:", count);
+                const el = document.getElementById('raceCount');
+                if (el) {
+                    el.innerText = count + ' races tracked';
+                } else {
+                    console.log("raceCount div not found");
+                }
+            })
+            .catch(err => console.error("fetch error:", err));
     </script>
 
 </body>
