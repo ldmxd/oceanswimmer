@@ -116,6 +116,28 @@
 
     <div id="raceList"></div>
 
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            loadRaces();
+
+            const params = new URLSearchParams(window.location.search);
+            const raceId = params.get("raceId");
+            const category = params.get("category");
+            const gender = params.get("gender");
+            const forename = params.get("forename");
+            const surname = params.get("surname");
+
+            if (raceId && category) {
+                searchByRaceAndCategory(raceId, category, gender);
+            } else if (raceId) {
+                searchByRace(raceId);
+            } else if (forename || surname) {
+                searchByName(forename, surname);
+            }
+
+        });
+    </script>
+
     <!-- JS deps -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
@@ -142,12 +164,12 @@
                     width: "35%",
                     render: function (data, type, row) {
                         return `
-                                      <a href="#"
-                                         class="race-link"
-                                         data-raceid="${row.raceId}"
-                                         data-racedesc="${row.raceName}">
-                                        ${data}
-                                      </a>`;
+                                          <a href="#"
+                                             class="race-link"
+                                             data-raceid="${row.raceId}"
+                                             data-racedesc="${row.raceName}">
+                                            ${data}
+                                          </a>`;
                     }
                 },
 
@@ -183,12 +205,12 @@
                     width: "20%",
                     render: function (data, type, row) {
                         return `
-                                      <a href="#"
-                                         class="name-link"
-                                         data-forename="${row.forename}"
-                                         data-surname="${row.surname}">
-                                        ${data}
-                                      </a>`;
+                                          <a href="#"
+                                             class="name-link"
+                                             data-forename="${row.forename}"
+                                             data-surname="${row.surname}">
+                                            ${data}
+                                          </a>`;
                     }
                 },
 
@@ -197,13 +219,13 @@
                     data: "category",
                     render: function (data, type, row) {
                         return `
-                                                    <a href="#"
-                                                       class="category-link"
-                                                       data-raceid="${row.raceId}"
-                                                       data-category="${data}"
-                                                       data-gender="${row.gender}">
-                                                       ${data}
-                                                    </a>`;
+                                                        <a href="#"
+                                                           class="category-link"
+                                                           data-raceid="${row.raceId}"
+                                                           data-category="${data}"
+                                                           data-gender="${row.gender}">
+                                                           ${data}
+                                                        </a>`;
                     }
                 }
                 ,
@@ -254,6 +276,18 @@
         $('#resultsTable').on('click', 'a.category-link', function (e) {
             e.preventDefault();
 
+            const raceId = this.dataset.raceid;
+            const category = this.dataset.category;
+            const gender = this.dataset.gender;
+
+            // ✅ update URL
+            let url = `/?raceId=${raceId}&category=${encodeURIComponent(category)}`;
+            if (gender) {
+                url += `&gender=${encodeURIComponent(gender)}`;
+            }
+
+            history.pushState({}, "", url);
+
             searchByRaceAndCategory(
                 this.dataset.raceid,
                 this.dataset.category,
@@ -264,6 +298,12 @@
 
         $('#resultsTable').on('click', 'a.race-link', function (e) {
             e.preventDefault();
+            const raceId = this.dataset.raceid;
+            const raceDesc = this.dataset.racedesc;
+
+            // ✅ update URL
+            history.pushState({}, "", "/?raceId=" + raceId);
+
             searchByRace(
                 this.dataset.raceid,
                 this.dataset.racedesc
@@ -314,7 +354,8 @@
                 const div = document.createElement("div");
 
                 const a = document.createElement("a");
-                a.href = "#";
+                //a.href = "#";
+                a.href = "/?raceId=" + r.raceId;
 
                 // 👇 Use raceName now
                 a.textContent = r.raceName;
@@ -324,6 +365,7 @@
 
                 a.onclick = (e) => {
                     e.preventDefault();
+                    history.pushState({}, "", a.href);
                     searchByRace(
                         a.dataset.raceId,
                         a.dataset.raceName
@@ -444,6 +486,25 @@
                 $("#forename").val(),
                 $("#surname").val()
             );
+        });
+
+        // handle browser back/forward
+        window.addEventListener("popstate", function () {
+            const params = new URLSearchParams(window.location.search);
+
+            const raceId = params.get("raceId");
+            const category = params.get("category");
+            const gender = params.get("gender");
+            const forename = params.get("forename");
+            const surname = params.get("surname");
+
+            if (raceId && category) {
+                searchByRaceAndCategory(raceId, category, gender);
+            } else if (raceId) {
+                searchByRace(raceId);
+            } else if (forename || surname) {
+                searchByName(forename, surname);
+            }
         });
     </script>
 

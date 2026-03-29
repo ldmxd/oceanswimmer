@@ -1,6 +1,7 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Dapper;
+using Microsoft.Data.SqlClient;
 using System.Globalization;
-using Dapper;
+using System.Text;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -69,6 +70,36 @@ app.MapGet("/api/race-count", async () =>
     );
 
     return Results.Ok(count);
+});
+
+app.MapGet("/sitemap.xml", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+
+    var raceIds = await conn.QueryAsync<int>(
+        "SELECT DISTINCT RaceId FROM dbo.OceanSwims"
+    );
+
+    var sb = new StringBuilder();
+
+    sb.AppendLine(@"<?xml version=""1.0"" encoding=""UTF-8""?>");
+    sb.AppendLine(@"<urlset xmlns=""http://www.sitemaps.org/schemas/sitemap/0.9"">");
+
+    sb.AppendLine(@"
+  <url>
+    <loc>https://oceanswimmer.com.au/</loc>
+  </url>");
+
+    foreach (var raceId in raceIds)
+    {
+        sb.AppendLine("  <url>");
+        sb.AppendLine($"    <loc>https://oceanswimmer.com.au/?raceId={raceId}</loc>");
+        sb.AppendLine("  </url>");
+    }
+
+    sb.AppendLine("</urlset>");
+
+    return Results.Text(sb.ToString(), "application/xml");
 });
 
 
