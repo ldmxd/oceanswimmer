@@ -117,7 +117,7 @@
     <div id="raceList"></div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        function initPage() {
             loadRaces();
 
             const params = new URLSearchParams(window.location.search);
@@ -134,8 +134,14 @@
             } else if (forename || surname) {
                 searchByName(forename, surname);
             }
+        }
 
-        });
+        // ✅ works whether DOM is already loaded or not
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initPage);
+        } else {
+            initPage();
+        }
     </script>
 
     <!-- JS deps -->
