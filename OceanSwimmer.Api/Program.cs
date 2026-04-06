@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using Microsoft.Data.SqlClient;
+using OceanSwimmer.Api.Helpers;
 using System.Globalization;
 using System.Text;
 
@@ -76,8 +77,9 @@ app.MapGet("/sitemap.xml", async () =>
 {
     using var conn = new SqlConnection(connStr);
 
-    var raceIds = await conn.QueryAsync<int>(
-        "SELECT DISTINCT RaceId FROM dbo.OceanSwims"
+    // 👇 get race name + id
+    var races = await conn.QueryAsync<(int RaceId, string RaceName)>(
+        "SELECT DISTINCT raceid, RaceName FROM dbo.vw_OceanSwims_Search"
     );
 
     var sb = new StringBuilder();
@@ -85,15 +87,18 @@ app.MapGet("/sitemap.xml", async () =>
     sb.AppendLine(@"<?xml version=""1.0"" encoding=""UTF-8""?>");
     sb.AppendLine(@"<urlset xmlns=""http://www.sitemaps.org/schemas/sitemap/0.9"">");
 
+    // homepage
     sb.AppendLine(@"
   <url>
     <loc>https://oceanswimmer.com.au/</loc>
   </url>");
 
-    foreach (var raceId in raceIds)
+    foreach (var r in races)
     {
+        var slug = SlugHelper.GenerateSlug(r.RaceName);
+
         sb.AppendLine("  <url>");
-        sb.AppendLine($"    <loc>https://oceanswimmer.com.au/?raceId={raceId}</loc>");
+        sb.AppendLine($"    <loc>https://oceanswimmer.com.au/results/{slug}-{r.RaceId}</loc>");
         sb.AppendLine("  </url>");
     }
 
@@ -370,6 +375,38 @@ app.MapGet("/races", async (string? q) =>
 
 
     return Results.Ok(results);
+});
+
+
+
+app.MapGet("/results/{slug}", async (string slug) =>
+{
+    // 👇 extract raceId from slug
+    var parts = slug.Split('-');
+    if (!int.TryParse(parts.Last(), out var raceId))
+        return Results.NotFound();
+
+    using var conn = new SqlConnection(connStr);
+
+    // 👇 get race name for canonical check
+    var race = await conn.QueryFirstOrDefaultAsync<string>(
+        "SELECT TOP 1 RaceName FROM dbo.vw_OceanSwims_Search WHERE raceid = @raceId",
+        new { raceId });
+
+    if (race == null)
+        return Results.NotFound();
+
+    // 👇 generate expected slug
+    var expectedSlug = SlugHelper.GenerateSlug(race);
+
+    // 👇 enforce canonical URL (SEO gold)
+    if (!slug.StartsWith(expectedSlug))
+    {
+        return Results.Redirect($"/results/{expectedSlug}-{raceId}", true);
+    }
+
+    // 👇 serve your SPA
+    return Results.File("wwwroot/index.html", "text/html");
 });
 
 

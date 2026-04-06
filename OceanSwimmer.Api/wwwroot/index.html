@@ -11,7 +11,6 @@
         gtag('config', 'G-E96VQVFFRF');
     </script>
 
-
     <meta charset="UTF-8" />
     <title>OceanSwimmer Results Search</title>
 
@@ -117,6 +116,16 @@
     <div id="raceList"></div>
 
     <script>
+        function generateSlug(input) {
+            return input
+                .toLowerCase()
+                .replace(/\|/g, "")
+                .replace(/[^\w\s-]/g, "")
+                .replace(/\s+/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^-+|-+$/g, "");
+        }
+
         function initPage() {
             loadRaces();
 
@@ -286,8 +295,15 @@
             const category = this.dataset.category;
             const gender = this.dataset.gender;
 
-            // ✅ update URL
-            let url = `/?raceId=${raceId}&category=${encodeURIComponent(category)}`;
+            // 👇 get race name from the row
+            const raceName = $(this).closest('tr').find('.race-link').data('racedesc');
+
+            // 👇 generate slug
+            const slug = generateSlug(raceName);
+
+            // ✅ new clean URL
+            let url = `/results/${slug}-${raceId}?category=${encodeURIComponent(category)}`;
+
             if (gender) {
                 url += `&gender=${encodeURIComponent(gender)}`;
             }
@@ -304,15 +320,19 @@
 
         $('#resultsTable').on('click', 'a.race-link', function (e) {
             e.preventDefault();
+
             const raceId = this.dataset.raceid;
             const raceDesc = this.dataset.racedesc;
 
-            // ✅ update URL
-            history.pushState({}, "", "/?raceId=" + raceId);
+            // 👇 generate slug
+            const slug = generateSlug(raceDesc);
+
+            // ✅ clean SEO URL
+            history.pushState({}, "", `/results/${slug}-${raceId}`);
 
             searchByRace(
-                this.dataset.raceid,
-                this.dataset.racedesc
+                raceId,
+                raceDesc
             );
         });
 
@@ -361,7 +381,8 @@
 
                 const a = document.createElement("a");
                 //a.href = "#";
-                a.href = "/?raceId=" + r.raceId;
+                const slug = generateSlug(r.raceName);
+                a.href = `/results/${slug}-${r.raceId}`;
 
                 // 👇 Use raceName now
                 a.textContent = r.raceName;
