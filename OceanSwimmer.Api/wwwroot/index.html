@@ -126,15 +126,27 @@
                 .replace(/^-+|-+$/g, "");
         }
 
+        function getRaceIdFromUrl() {
+            // first try query param (old way)
+            const params = new URLSearchParams(window.location.search);
+            const raceIdFromQuery = params.get("raceId");
+            if (raceIdFromQuery) return raceIdFromQuery;
+
+            // fallback to slug (new SEO way)
+            const match = window.location.pathname.match(/-(\d+)$/);
+            return match ? match[1] : null;
+        }
+
         function initPage() {
-            loadRaces();
 
             const params = new URLSearchParams(window.location.search);
-            const raceId = params.get("raceId");
+            const raceId = getRaceIdFromUrl(); // 👈 changed
             const category = params.get("category");
             const gender = params.get("gender");
             const forename = params.get("forename");
             const surname = params.get("surname");
+
+            console.log("RaceId detected:", raceId);
 
             if (raceId && category) {
                 searchByRaceAndCategory(raceId, category, gender);
@@ -142,10 +154,12 @@
                 searchByRace(raceId);
             } else if (forename || surname) {
                 searchByName(forename, surname);
+            } else {
+                loadRaces(); // 👈 ONLY load default if no race
             }
         }
 
-        // ✅ works whether DOM is already loaded or not
+        // works whether DOM is already loaded or not
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", initPage);
         } else {
@@ -485,10 +499,8 @@
                 .then(res => res.json())
                 .then(json => {
 
-                    const label = raceDescription || "Selected race";
-
                     document.getElementById("resultCount").innerText =
-                        `Results for race: ${label} (${json.count})`;
+                        `Selected race — ${json.count} results`;
 
                     table.clear();
                     table.search("");

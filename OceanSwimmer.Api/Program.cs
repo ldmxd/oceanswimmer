@@ -378,17 +378,14 @@ app.MapGet("/races", async (string? q) =>
 });
 
 
-
-app.MapGet("/results/{slug}", async (string slug) =>
+app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
 {
-    // 👇 extract raceId from slug
     var parts = slug.Split('-');
     if (!int.TryParse(parts.Last(), out var raceId))
         return Results.NotFound();
 
     using var conn = new SqlConnection(connStr);
 
-    // 👇 get race name for canonical check
     var race = await conn.QueryFirstOrDefaultAsync<string>(
         "SELECT TOP 1 RaceName FROM dbo.vw_OceanSwims_Search WHERE raceid = @raceId",
         new { raceId });
@@ -396,18 +393,20 @@ app.MapGet("/results/{slug}", async (string slug) =>
     if (race == null)
         return Results.NotFound();
 
-    // 👇 generate expected slug
     var expectedSlug = SlugHelper.GenerateSlug(race);
 
-    // 👇 enforce canonical URL (SEO gold)
     if (!slug.StartsWith(expectedSlug))
     {
         return Results.Redirect($"/results/{expectedSlug}-{raceId}", true);
     }
 
-    // 👇 serve your SPA
-    return Results.File("wwwroot/index.html", "text/html");
-});
+    // ✅ SAFE FILE SERVING
+    var filePath = Path.Combine(env.WebRootPath, "index.html");
 
+    if (!File.Exists(filePath))
+        return Results.Problem("index.html not found"); // avoids silent 500
+
+    return Results.File(filePath, "text/html");
+});
 
 app.Run();
