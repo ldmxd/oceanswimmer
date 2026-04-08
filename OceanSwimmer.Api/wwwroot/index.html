@@ -14,6 +14,13 @@
     <meta charset="UTF-8" />
     <title>OceanSwimmer Results Search</title>
 
+    <link rel="icon" href="/favicon.ico" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
     <!-- DataTables (sorting + export) -->
     <link rel="stylesheet"
           href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
@@ -60,7 +67,12 @@
 </head>
 <body>
 
-    <h1>🏊 Ocean Swimmer Results</h1>
+    <h1 style="display:flex; align-items:center;">
+        <a href="/" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit;">
+            <img src="/favicon-32x32.png" alt="Home" style="width:28px; height:28px;" />
+            <span>Ocean Swimmer Results</span>
+        </a>
+    </h1>
 
     <div id="raceCount" style="color:#666; margin-bottom:15px;"></div>
 
