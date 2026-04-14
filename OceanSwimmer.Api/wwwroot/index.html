@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <!-- Google tag (gtag.js) -->
@@ -7,7 +7,6 @@
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-
         gtag('config', 'G-E96VQVFFRF');
     </script>
 
@@ -15,10 +14,8 @@
     <title>OceanSwimmer Results Search</title>
 
     <link rel="icon" href="/favicon.ico" />
-
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- DataTables (sorting + export) -->
@@ -63,6 +60,228 @@
             margin-top: -5px;
             margin-bottom: 15px;
         }
+
+        /* ── Auth bar ───────────────────────────────────────────────── */
+        #authBar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+            font-size: 14px;
+        }
+
+        #authBar a, #authBar button {
+            font-size: 14px;
+        }
+
+        .btn-google {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            background: #fff;
+            color: #3c4043;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn-google:hover {
+            background: #f8f9fa;
+            text-decoration: none;
+        }
+
+        .btn-google svg {
+            flex-shrink: 0;
+        }
+
+        .btn-logout {
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .btn-logout:hover {
+            background: #f5f5f5;
+        }
+
+        .auth-name {
+            color: #333;
+            font-weight: 500;
+        }
+
+        /* ── Claim button ───────────────────────────────────────────── */
+        .claim-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            color: #aaa;
+            transition: color 0.15s, transform 0.1s;
+        }
+
+        .claim-btn:hover {
+            color: #f5a623;
+            transform: scale(1.2);
+        }
+
+        .claim-btn.claimed {
+            color: #f5a623;
+        }
+
+        .claim-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .claim-lock {
+            text-decoration: none;
+            font-size: 14px;
+            opacity: 0.4;
+        }
+
+        .claim-lock:hover {
+            opacity: 0.8;
+        }
+
+        /* ── Quick panels ───────────────────────────────────────── */
+        .quick-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        .quick-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .quick-panel-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-panel-toggle {
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            color: #444;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn-panel-toggle:hover { background: #f5f5f5; }
+        .btn-panel-toggle.active {
+            background: #0066cc;
+            border-color: #0066cc;
+            color: #fff;
+        }
+
+        .panel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .panel-table th {
+            text-align: left;
+            padding: 6px 8px;
+            background: #f9fafb;
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+        }
+
+        .panel-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f5f5f5;
+            vertical-align: middle;
+        }
+
+        .panel-table tr:last-child td { border-bottom: none; }
+        .panel-table tr:hover td { background: #fafafa; }
+
+        .today-btn {
+            padding: 2px 10px;
+            font-size: 12px;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .today-btn.active {
+            background: #f5a623;
+            border-color: #f5a623;
+            color: #fff;
+        }
+
+        .near-badge {
+            font-size: 10px;
+            color: #f5a623;
+            border: 1px solid #f5a623;
+            border-radius: 3px;
+            padding: 0 3px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        /* Near-match rows — subtle amber left border */
+        .near-match-row td {
+            background: #fffbf0 !important;
+            border-left: none;
+        }
+        .near-match-row td:first-child {
+            border-left: 3px solid #f5a623;
+        }
+
+        .claim-near-btn {
+            background: none;
+            border: 1px solid #bbb;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #888;
+            padding: 0;
+            line-height: 1;
+            transition: all 0.15s;
+        }
+
+        .claim-near-btn:hover {
+            border-color: #f5a623;
+            color: #f5a623;
+        }
     </style>
 </head>
 <body>
@@ -72,17 +291,33 @@
             <img src="/favicon-32x32.png" alt="Home" style="width:28px; height:28px;" />
             <span>Ocean Swimmer Results</span>
         </a>
+        <!-- Auth bar sits on the right of the header row -->
+        <div id="authBar" style="margin-left:auto;">
+            <!-- populated by initAuth() -->
+        </div>
     </h1>
+
+    <!-- Results to Claim panel (populated by JS, only shown when logged in) -->
+    <div id="swimsToClaimPanelWrap" style="display:none;"></div>
 
     <div id="raceCount" style="color:#666; margin-bottom:15px;"></div>
 
     <form id="searchForm">
         <input type="text" id="forename" placeholder="Forename" />
-        <input type="text" id="surname" placeholder="Surname" />
+        <input type="text" id="surname"  placeholder="Surname"  />
         <button type="submit">Search</button>
     </form>
 
-    <div id="resultCount" style="margin-bottom: 0.5rem; font-weight: 600;"></div>
+    <div style="display:flex; align-items:center; gap:16px; margin-bottom:0.5rem;">
+        <div id="resultCount" style="font-weight:600;"></div>
+        <button id="claimAllBtn"
+                onclick="claimAll()"
+                title="Claim all results currently shown"
+                style="display:none; font-size:13px; padding:4px 12px;">
+            ★ Claim All
+        </button>
+        <span id="claimAllMsg" style="font-size:13px; color:#555; display:none;"></span>
+    </div>
 
     <table id="resultsTable" class="display" style="width:100%">
         <thead>
@@ -91,24 +326,18 @@
                 <th>Date</th>
                 <th>Distance</th>
                 <th>Time</th>
-
                 <th>Name</th>
-
                 <th>Category</th>
                 <th>Category Pos</th>
                 <th>Category %</th>
-
                 <th>Overall Pos</th>
                 <th>Overall %</th>
-
                 <th>Gender</th>
                 <th>Gender Pos</th>
                 <th>Gender %</th>
+                <th>Claim</th>
             </tr>
         </thead>
-
-
-
         <tbody></tbody>
     </table>
 
@@ -139,26 +368,21 @@
         }
 
         function getRaceIdFromUrl() {
-            // first try query param (old way)
             const params = new URLSearchParams(window.location.search);
             const raceIdFromQuery = params.get("raceId");
             if (raceIdFromQuery) return raceIdFromQuery;
 
-            // fallback to slug (new SEO way)
             const match = window.location.pathname.match(/-(\d+)$/);
             return match ? match[1] : null;
         }
 
         function initPage() {
-
-            const params = new URLSearchParams(window.location.search);
-            const raceId = getRaceIdFromUrl(); // 👈 changed
+            const params   = new URLSearchParams(window.location.search);
+            const raceId   = getRaceIdFromUrl();
             const category = params.get("category");
-            const gender = params.get("gender");
+            const gender   = params.get("gender");
             const forename = params.get("forename");
-            const surname = params.get("surname");
-
-            console.log("RaceId detected:", raceId);
+            const surname  = params.get("surname");
 
             if (raceId && category) {
                 searchByRaceAndCategory(raceId, category, gender);
@@ -167,16 +391,11 @@
             } else if (forename || surname) {
                 searchByName(forename, surname);
             } else {
-                loadRaces(); // 👈 ONLY load default if no race
+                loadRaces();
             }
         }
 
-        // works whether DOM is already loaded or not
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", initPage);
-        } else {
-            initPage();
-        }
+        // initPage() called at bottom of main script block once everything is defined
     </script>
 
     <!-- JS deps -->
@@ -186,217 +405,334 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
 
     <script>
-        //const API_BASE = "http://localhost:5221/swims/search"; // change later to api.oceanswimmer.com.au
-        //const API_BASE = "https://api.oceanswimmer.com.au/swims/search";
         const API_BASE = "/swims/search";
 
-        let allRaces = [];
+        let allRaces      = [];
+        let currentUser   = null;          // null = logged out
+        let claimedSwimIds = new Set();    // Set of oceanswimsId integers
 
 
+        // ── DataTable ────────────────────────────────────────────────
         let table = $('#resultsTable').DataTable({
             destroy: true,
             autoWidth: false,
             pageLength: 25,
             columns: [
-
-                // 1️⃣ Race
+                // 0 Race
                 {
                     data: "raceName",
-                    width: "35%",
+                    width: "32%",
                     render: function (data, type, row) {
-                        return `
-                                          <a href="#"
-                                             class="race-link"
-                                             data-raceid="${row.raceId}"
-                                             data-racedesc="${row.raceName}">
-                                            ${data}
-                                          </a>`;
+                        return `<a href="#" class="race-link"
+                                   data-raceid="${row.raceId}"
+                                   data-racedesc="${row.raceName}">${data}</a>`;
                     }
                 },
-
-                // 2️⃣ Date
+                // 1 Date
                 {
                     data: "raceDate",
                     width: "10%",
                     render: function (data, type) {
                         if (!data) return "";
-
                         if (type === "display") {
                             const d = new Date(data);
                             return d.toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric"
+                                day: "2-digit", month: "short", year: "numeric"
                             });
                         }
-
-                        return data; // 👈 raw value used for sorting
+                        return data;
                     }
                 },
-
-                // 3️⃣ Distance
+                // 2 Distance
                 { data: "distance", width: "6%" },
-
-                // 4️⃣ Time
+                // 3 Time
                 { data: "raceTime", width: "6%" },
-
-                // 5️⃣ Name
+                // 4 Name
                 {
                     data: "fullName",
-                    width: "20%",
+                    width: "18%",
                     render: function (data, type, row) {
-                        return `
-                                          <a href="#"
-                                             class="name-link"
-                                             data-forename="${row.forename}"
-                                             data-surname="${row.surname}">
-                                            ${data}
-                                          </a>`;
+                        return `<a href="#" class="name-link"
+                                   data-forename="${row.forename}"
+                                   data-surname="${row.surname}">${data}</a>`;
                     }
                 },
-
-                // 6️⃣ Category
+                // 5 Category
                 {
                     data: "category",
                     render: function (data, type, row) {
-                        return `
-                                                        <a href="#"
-                                                           class="category-link"
-                                                           data-raceid="${row.raceId}"
-                                                           data-category="${data}"
-                                                           data-gender="${row.gender}">
-                                                           ${data}
-                                                        </a>`;
+                        return `<a href="#" class="category-link"
+                                   data-raceid="${row.raceId}"
+                                   data-category="${data}"
+                                   data-gender="${row.gender}">${data}</a>`;
                     }
-                }
-                ,
-
-                // 7️⃣ Category Pos
-                { data: "categoryPosition", width: "5%" },
-
-                // 8️⃣ Category %
-                {
-                    data: "categoryPercentile",
-                    width: "5%",
-                    render: d => d != null ? `${d.toFixed(2)}%` : ""
                 },
-
-                // 9️⃣ Overall Pos
-                { data: "overallPosition", width: "5%" },
-
-                // 🔟 Overall %
-                {
-                    data: "overallPercentile",
-                    width: "5%",
-                    render: d => d != null ? `${d.toFixed(2)}%` : ""
-                },
-
+                // 6 Category Pos
+                { data: "categoryPosition",  width: "5%" },
+                // 7 Category %
+                { data: "categoryPercentile",  width: "5%",
+                  render: d => d != null ? `${d.toFixed(2)}%` : "" },
+                // 8 Overall Pos
+                { data: "overallPosition",   width: "5%" },
+                // 9 Overall %
+                { data: "overallPercentile", width: "5%",
+                  render: d => d != null ? `${d.toFixed(2)}%` : "" },
+                // 10 Gender
                 { data: "gender" },
-                // 1️⃣1️⃣ Gender Pos
-                { data: "genderPosition", width: "5%" },
-
-                // 1️⃣2️⃣ Gender %
+                // 11 Gender Pos
+                { data: "genderPosition",    width: "5%" },
+                // 12 Gender %
+                { data: "genderPercentile",  width: "5%",
+                  render: d => d != null ? `${d.toFixed(2)}%` : "" },
+                // 13 Claim ★
                 {
-                    data: "genderPercentile",
-                    width: "5%",
-                    render: d => d != null ? `${d.toFixed(2)}%` : ""
+                    data: "oceanswimsId",
+                    orderable: false,
+                    width: "4%",
+                    render: function (data, type, row) {
+                        if (!data) return "";
+
+                        if (!currentUser) {
+                            return `<a href="/login/google" class="claim-lock" title="Sign in to claim">🔒</a>`;
+                        }
+
+                        // Near-match rows (phonetically similar surname) — show ? button
+                        if (row._nearMatch && !claimedSwimIds.has(data)) {
+                            const rowName = `${row.forename || ''} ${row.surname || ''}`.trim();
+                            return `<button class="claim-near-btn"
+                                            data-id="${data}"
+                                            data-rowname="${rowName}"
+                                            title="Name differs slightly — is this you?">?</button>`;
+                        }
+
+                        const claimed = claimedSwimIds.has(data);
+                        return `<button class="claim-btn ${claimed ? 'claimed' : ''}"
+                                        data-id="${data}"
+                                        title="${claimed ? 'Remove claim' : 'Claim this swim'}">
+                                    ${claimed ? '★' : '☆'}
+                                </button>`;
+                    }
                 }
             ],
             dom: "Bfrtip",
             buttons: ["csv"],
-            order: [
-                [1, "desc"],   // Date
-                [8, "asc"]     // Overall Pos
-            ],
+            order: [[1, "desc"], [8, "asc"]],
             columnDefs: [
-                { targets: [4, 5, 6, 7, 8, 9], className: "dt-center" }
-            ]
-
+                { targets: [4, 5, 6, 7, 8, 9, 13], className: "dt-center" }
+            ],
+            createdRow: function (row, data) {
+                if (data._nearMatch) $(row).addClass('near-match-row');
+            }
         });
+
+
+        // ── Auth ─────────────────────────────────────────────────────
+
+        async function initAuth() {
+            try {
+                const res = await fetch('/auth/me');
+                if (res.ok) {
+                    currentUser = await res.json();
+                    await loadClaimedSwims();
+                }
+            } catch (e) {
+                // Not logged in — that's fine
+            }
+            renderAuthBar();
+            table.draw(false);   // redraw claim column now we know auth state
+            updateClaimAllBtn();
+        }
+
+        async function loadClaimedSwims() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch('/athlete/swims');
+                if (res.ok) {
+                    const swims = await res.json();
+                    claimedSwimIds = new Set(swims.map(s => s.oceanswimsid));
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        function renderAuthBar() {
+            const bar = document.getElementById('authBar');
+            if (currentUser) {
+                const name = currentUser.name || currentUser.email || 'Swimmer';
+                bar.innerHTML = `
+                    <span class="auth-name">👋 ${name}</span>
+                    <button class="btn-panel-toggle" id="mySwimsPanelBtn"      onclick="toggleMySwims()">★ My Results</button>
+                    <button class="btn-panel-toggle" id="swimsToClaimBtn" onclick="toggleSwimsToClaim()">☆ Results to Claim</button>
+                    <a href="/athlete.html" style="font-size:13px; color:#666; white-space:nowrap;">Full Profile</a>
+                    <button class="btn-logout" onclick="logout()">Logout</button>`;
+            } else {
+                bar.innerHTML = `<a href="/login.html" class="btn-google">Sign in</a>`;
+            }
+        }
+
+        async function logout() {
+            await fetch('/auth/logout', { method: 'POST' });
+            currentUser    = null;
+            claimedSwimIds = new Set();
+            closeBothPanels();
+            renderAuthBar();
+            table.draw(false);
+        }
+
+
+        // ── Claim toggle ─────────────────────────────────────────────
+
+        $(document).on('click', '.claim-btn', async function () {
+            const btn     = $(this);
+            const id      = parseInt(btn.data('id'));
+            const claimed = claimedSwimIds.has(id);
+            const method  = claimed ? 'DELETE' : 'POST';
+
+            btn.prop('disabled', true);
+
+            try {
+                const res = await fetch(`/swims/${id}/claim`, { method });
+                if (res.ok) {
+                    if (claimed) {
+                        claimedSwimIds.delete(id);
+                        btn.removeClass('claimed').html('☆').attr('title', 'Claim this swim');
+                    } else {
+                        claimedSwimIds.add(id);
+                        btn.addClass('claimed').html('★').attr('title', 'Remove claim');
+                    }
+                    updateClaimAllBtn();
+                } else if (res.status === 409) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || 'You have already claimed a result for this race.');
+                } else {
+                    alert(`Claim failed (HTTP ${res.status}). Please try logging out and back in.`);
+                }
+            } finally {
+                btn.prop('disabled', false);
+            }
+        });
+
+
+        // ── Claim All ────────────────────────────────────────────────
+
+        function updateClaimAllBtn() {
+            const btn = document.getElementById('claimAllBtn');
+            const msg = document.getElementById('claimAllMsg');
+            if (!currentUser) { btn.style.display = 'none'; return; }
+
+            const allIds = table.rows().data().toArray()
+                .map(r => r.oceanswimsId)
+                .filter(Boolean);
+
+            const unclaimedCount = allIds.filter(id => !claimedSwimIds.has(id)).length;
+
+            if (allIds.length === 0) {
+                btn.style.display = 'none';
+                msg.style.display = 'none';
+            } else if (unclaimedCount === 0) {
+                btn.style.display = 'none';
+                msg.style.display = 'inline';
+                msg.textContent   = '★ All swims claimed';
+            } else {
+                btn.style.display  = 'inline';
+                btn.textContent    = `★ Claim All (${unclaimedCount})`;
+                msg.style.display  = 'none';
+            }
+        }
+
+        async function claimAll() {
+            const btn = document.getElementById('claimAllBtn');
+            const msg = document.getElementById('claimAllMsg');
+
+            // All unclaimed IDs from current table data
+            const ids = table.rows().data().toArray()
+                .map(r => r.oceanswimsId)
+                .filter(id => id && !claimedSwimIds.has(id));
+
+            if (ids.length === 0) return;
+
+            btn.disabled    = true;
+            btn.textContent = 'Claiming…';
+
+            try {
+                const res = await fetch('/swims/claim-all', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ ids })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+
+                    // Re-fetch the authoritative claimed set (server picks 1 per race)
+                    const swimsRes = await fetch('/athlete/swims');
+                    if (swimsRes.ok) {
+                        const swims = await swimsRes.json();
+                        claimedSwimIds = new Set(swims.map(s => s.oceanswimsid));
+                    }
+
+                    table.draw(false);
+                    updateClaimAllBtn();
+
+                    msg.style.display = 'inline';
+                    msg.textContent   = `★ ${data.claimed} swim${data.claimed !== 1 ? 's' : ''} claimed`;
+                    btn.style.display = 'none';
+                }
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+
+        // ── Existing event handlers (unchanged) ──────────────────────
 
         $('#resultsTable').on('click', 'a.category-link', function (e) {
             e.preventDefault();
-
-            const raceId = this.dataset.raceid;
+            const raceId   = this.dataset.raceid;
             const category = this.dataset.category;
-            const gender = this.dataset.gender;
-
-            // 👇 get race name from the row
+            const gender   = this.dataset.gender;
             const raceName = $(this).closest('tr').find('.race-link').data('racedesc');
+            const slug     = generateSlug(raceName);
 
-            // 👇 generate slug
-            const slug = generateSlug(raceName);
-
-            // ✅ new clean URL
             let url = `/results/${slug}-${raceId}?category=${encodeURIComponent(category)}`;
-
-            if (gender) {
-                url += `&gender=${encodeURIComponent(gender)}`;
-            }
-
+            if (gender) url += `&gender=${encodeURIComponent(gender)}`;
             history.pushState({}, "", url);
 
-            searchByRaceAndCategory(
-                this.dataset.raceid,
-                this.dataset.category,
-                this.dataset.gender
-            );
+            searchByRaceAndCategory(raceId, category, gender);
         });
-
 
         $('#resultsTable').on('click', 'a.race-link', function (e) {
             e.preventDefault();
-
-            const raceId = this.dataset.raceid;
+            const raceId   = this.dataset.raceid;
             const raceDesc = this.dataset.racedesc;
-
-            // 👇 generate slug
-            const slug = generateSlug(raceDesc);
-
-            // ✅ clean SEO URL
+            const slug     = generateSlug(raceDesc);
             history.pushState({}, "", `/results/${slug}-${raceId}`);
-
-            searchByRace(
-                raceId,
-                raceDesc
-            );
+            searchByRace(raceId, raceDesc);
         });
 
         $(document).on("click", ".name-link", function (e) {
             e.preventDefault();
-
             const forename = $(this).data("forename");
-            const surname = $(this).data("surname");
-
-            // Clear race context
+            const surname  = $(this).data("surname");
             $("#resultCount").innerText = "";
-
-            // Run person search
             searchByName(forename, surname);
-
-            // Scroll back to top
             window.scrollTo({ top: 0, behavior: "smooth" });
         });
 
 
+        // ── Data fetching ────────────────────────────────────────────
 
         async function loadRaces() {
-            const res = await fetch("/races");
-            allRaces = await res.json();
+            const res  = await fetch("/races");
+            allRaces   = await res.json();
             renderRaceList(allRaces);
         }
 
         function filterRaces() {
             const q = document.getElementById("raceSearch").value.toLowerCase();
-
-            const filtered = allRaces.filter(r =>
-                r.raceName &&
-                r.raceName.toLowerCase().includes(q)
-            );
-
-            renderRaceList(filtered);
+            renderRaceList(allRaces.filter(r =>
+                r.raceName && r.raceName.toLowerCase().includes(q)
+            ));
         }
-
 
         function renderRaceList(races) {
             const container = document.getElementById("raceList");
@@ -404,48 +740,30 @@
 
             races.forEach(r => {
                 const div = document.createElement("div");
-
-                const a = document.createElement("a");
-                //a.href = "#";
+                const a   = document.createElement("a");
                 const slug = generateSlug(r.raceName);
-                a.href = `/results/${slug}-${r.raceId}`;
-
-                // 👇 Use raceName now
+                a.href        = `/results/${slug}-${r.raceId}`;
                 a.textContent = r.raceName;
-
-                a.dataset.raceId = r.raceId;
+                a.dataset.raceId   = r.raceId;
                 a.dataset.raceName = r.raceName;
-
                 a.onclick = (e) => {
                     e.preventDefault();
                     history.pushState({}, "", a.href);
-                    searchByRace(
-                        a.dataset.raceId,
-                        a.dataset.raceName
-                    );
+                    searchByRace(a.dataset.raceId, a.dataset.raceName);
                 };
-
                 div.appendChild(a);
-
-                div.appendChild(
-                    document.createTextNode(
-                        ` – ${r.raceDate ?? ""} · ${r.distance ?? "?"} km · ${r.resultCount} results`
-                    )
-                );
-
+                div.appendChild(document.createTextNode(
+                    ` – ${r.raceDate ?? ""} · ${r.distance ?? "?"} km · ${r.resultCount} results`
+                ));
                 container.appendChild(div);
             });
         }
 
-
-
         function searchByRaceAndCategory(raceId, category, gender) {
-
             const params = new URLSearchParams();
-            params.append("raceId", raceId);
+            params.append("raceId",   raceId);
             params.append("category", category);
-            if (gender)
-                params.append("gender", gender);
+            if (gender) params.append("gender", gender);
             params.append("pageSize", 10000);
 
             fetch(`${API_BASE}?${params.toString()}`)
@@ -453,38 +771,61 @@
                 .then(json => {
                     document.getElementById("resultCount").innerText =
                         `Results for ${category} (${json.count})`;
-
                     table.clear();
                     table.search("");
                     table.rows.add(json.results);
                     table.draw();
-
+                    updateClaimAllBtn();
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 });
         }
 
-
         async function runSearch(forename, surname) {
             const params = new URLSearchParams();
             if (forename) params.append("forename", forename);
-            if (surname) params.append("surname", surname);
+            if (surname)  params.append("surname",  surname);
             params.append("pageSize", 250);
 
-            const res = await fetch(`${API_BASE}?${params.toString()}`);
+            const res  = await fetch(`${API_BASE}?${params.toString()}`);
             const json = await res.json();
 
-            console.log("API response:", json);
-            console.log("First row:", json.results?.[0]);
-
-            document.getElementById("resultCount").innerText =
-                `${json.count} results returned`;
-
+            document.getElementById("resultCount").innerText = `${json.count} results returned`;
 
             table.clear();
             table.search("");
             table.rows.add(json.results);
             table.draw();
+            updateClaimAllBtn();
             $('.dataTables_filter input').val("");
+
+            // If logged in and searching own name, also look for near-match surname results
+            if (currentUser?.swimmerSurname && surname &&
+                surname.trim().toLowerCase() === currentUser.swimmerSurname.toLowerCase()) {
+                searchSimilar(forename, surname);
+            }
+        }
+
+        async function searchSimilar(forename, surname) {
+            if (!forename && !surname) return;
+            try {
+                const params = new URLSearchParams();
+                if (forename) params.append("forename", forename);
+                if (surname)  params.append("surname",  surname);
+                const res  = await fetch(`/swims/search-similar?${params.toString()}`);
+                const json = await res.json();
+                if (!json.results || json.results.length === 0) return;
+
+                // Append near-match rows to existing table
+                table.rows.add(json.results);
+                table.draw(false);
+                updateClaimAllBtn();
+
+                // Update result count to mention similar results
+                const countEl = document.getElementById("resultCount");
+                const existing = countEl.innerText;
+                countEl.innerText =
+                    `${existing}  (+${json.count} similar name result${json.count !== 1 ? 's' : ''})`;
+            } catch (e) { /* silently ignore */ }
         }
 
         function searchByName(forename, surname) {
@@ -494,85 +835,431 @@
         }
 
         function searchByRace(raceId, raceDescription) {
-
-            if (!raceId) {
-                console.warn("searchByRace called with invalid raceId:", raceId);
-                return;
-            }
+            if (!raceId) { console.warn("searchByRace called with invalid raceId:", raceId); return; }
 
             $("#forename").val("");
             $("#surname").val("");
 
             const params = new URLSearchParams();
-            params.append("raceId", raceId);
+            params.append("raceId",   raceId);
             params.append("pageSize", 10000);
 
             fetch(`${API_BASE}?${params.toString()}`)
                 .then(res => res.json())
                 .then(json => {
-
                     document.getElementById("resultCount").innerText =
                         `Selected race — ${json.count} results`;
-
                     table.clear();
                     table.search("");
                     table.rows.add(json.results);
                     table.draw();
-
+                    updateClaimAllBtn();
                     $('.dataTables_filter input').val("");
-
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 })
-                .catch(err => {
-                    console.error("Race search failed:", err);
-                });
+                .catch(err => console.error("Race search failed:", err));
         }
-
-
-
 
         $("#searchForm").on("submit", (e) => {
             e.preventDefault();
-            runSearch(
-                $("#forename").val(),
-                $("#surname").val()
-            );
+            runSearch($("#forename").val(), $("#surname").val());
         });
 
-        // handle browser back/forward
         window.addEventListener("popstate", function () {
-            const params = new URLSearchParams(window.location.search);
-
-            const raceId = params.get("raceId");
+            const params   = new URLSearchParams(window.location.search);
+            const raceId   = params.get("raceId");
             const category = params.get("category");
-            const gender = params.get("gender");
+            const gender   = params.get("gender");
             const forename = params.get("forename");
-            const surname = params.get("surname");
+            const surname  = params.get("surname");
 
-            if (raceId && category) {
-                searchByRaceAndCategory(raceId, category, gender);
-            } else if (raceId) {
-                searchByRace(raceId);
-            } else if (forename || surname) {
-                searchByName(forename, surname);
+            if (raceId && category)   { searchByRaceAndCategory(raceId, category, gender); }
+            else if (raceId)          { searchByRace(raceId); }
+            else if (forename || surname) { searchByName(forename, surname); }
+        });
+
+        // ── Near-match detection (for ? button) ──────────────────────
+
+        function levenshtein(a, b) {
+            const m = a.length, n = b.length;
+            const dp = Array.from({ length: m + 1 }, (_, i) =>
+                Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+            for (let i = 1; i <= m; i++)
+                for (let j = 1; j <= n; j++)
+                    dp[i][j] = a[i-1] === b[j-1]
+                        ? dp[i-1][j-1]
+                        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+            return dp[m][n];
+        }
+
+        function isNearMatch(row) {
+            if (!currentUser?.swimmerForename && !currentUser?.swimmerSurname) return false;
+            const forenameMatch = (row.forename || '').toLowerCase() ===
+                (currentUser.swimmerForename || '').toLowerCase();
+            const surnameExact  = (row.surname  || '').toLowerCase() ===
+                (currentUser.swimmerSurname  || '').toLowerCase();
+            if (forenameMatch && surnameExact) return false; // exact — handled by normal ☆
+            const surnameDist = levenshtein(
+                (row.surname  || '').toLowerCase(),
+                (currentUser.swimmerSurname || '').toLowerCase()
+            );
+            return forenameMatch && surnameDist <= 2;
+        }
+
+        // Manual claim handler for ? button
+        $('#resultsTable').on('click', '.claim-near-btn', async function () {
+            const id       = parseInt($(this).data('id'));
+            const rowName  = $(this).data('rowname');
+            const confirmed = confirm(
+                `This result shows the name as "${rowName}".\n\nIs this your swim?`
+            );
+            if (!confirmed) return;
+
+            $(this).prop('disabled', true);
+            try {
+                const res = await fetch(`/swims/${id}/claim-manual`, { method: 'POST' });
+                if (res.ok) {
+                    claimedSwimIds.add(id);
+                    table.draw(false);
+                    updateClaimAllBtn();
+                } else if (res.status === 409) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || 'You have already claimed a result for this race.');
+                }
+            } finally {
+                $(this).prop('disabled', false);
             }
         });
+
+
+        // ── Quick panels ─────────────────────────────────────────
+
+        let mySwimsPanelLoaded   = false;
+        let swimsToClaimLoaded   = false;
+        let swimsToClaimData     = [];    // raw fetched candidates
+        let swimsToClaimRecent   = false; // recently-filter toggle
+        const RECENTLY_DAYS      = 30;    // "Completed Recently" window
+
+        function panelFmtDate(dateStr) {
+            if (!dateStr) return '–';
+            return new Date(dateStr).toLocaleDateString('en-GB',
+                { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function closeBothPanels() {
+            const myWrap = document.getElementById('mySwimsPanelWrap');
+            if (myWrap) myWrap.style.display = 'none';
+            document.getElementById('swimsToClaimPanelWrap').style.display = 'none';
+            document.getElementById('mySwimsPanelBtn') ?.classList.remove('active');
+            document.getElementById('swimsToClaimBtn') ?.classList.remove('active');
+        }
+
+        function toggleMySwims() {
+            if (!currentUser?.swimmerForename && !currentUser?.swimmerSurname) return;
+            closeBothPanels();
+            searchByName(currentUser.swimmerForename || '', currentUser.swimmerSurname || '');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleSwimsToClaim() {
+            const wrap   = document.getElementById('swimsToClaimPanelWrap');
+            const isOpen = wrap.style.display !== 'none';
+            closeBothPanels();
+            if (!isOpen) {
+                wrap.style.display = 'block';
+                document.getElementById('swimsToClaimBtn').classList.add('active');
+                if (!swimsToClaimLoaded) loadSwimsToClaim();
+            }
+        }
+
+
+        // ── My Swims panel ────────────────────────────────────────
+
+        async function loadMySwimsSummary() {
+            const wrap = document.getElementById('mySwimsPanelWrap');
+            wrap.innerHTML = `<div class="quick-panel"><p style="color:#999;font-size:13px;">Loading…</p></div>`;
+
+            try {
+                const res   = await fetch('/athlete/swims');
+                if (!res.ok) throw new Error();
+                const swims = await res.json();
+                mySwimsPanelLoaded = true;
+
+                if (!swims.length) {
+                    wrap.innerHTML = `
+                        <div class="quick-panel">
+                            <div class="quick-panel-header">
+                                <h3>★ My Claimed Results</h3>
+                                <a href="/athlete.html" style="font-size:13px;">Full profile →</a>
+                            </div>
+                            <p style="color:#888;font-size:13px;margin:0;">
+                                No results claimed yet — use the ☆ buttons or <em>Results to Claim</em> to get started.
+                            </p>
+                        </div>`;
+                    return;
+                }
+
+                const totalKm = swims.reduce((s, r) => s + (r.Distance || 0), 0);
+                const recent  = [...swims]
+                    .sort((a, b) => new Date(b.RaceDate) - new Date(a.RaceDate))
+                    .slice(0, 8);
+
+                const rows = recent.map(r => `
+                    <tr>
+                        <td style="white-space:nowrap">${panelFmtDate(r.RaceDate)}</td>
+                        <td><a href="/results/${generateSlug(r.RaceName)}-${r.raceid}">${r.RaceName}</a></td>
+                        <td style="text-align:right">${r.Distance ?? '–'} km</td>
+                        <td style="text-align:right">${r.RaceTime ?? '–'}</td>
+                        <td style="text-align:right">${r.OverallPosition != null
+                            ? `${r.OverallPosition} / ${r.OverallCompetitors}` : '–'}</td>
+                    </tr>`).join('');
+
+                const moreNote = swims.length > 8
+                    ? `<p style="font-size:12px;color:#999;margin:8px 0 0 0;">
+                           Showing ${recent.length} most recent.
+                           <a href="/athlete.html">See all ${swims.length} →</a>
+                       </p>`
+                    : '';
+
+                wrap.innerHTML = `
+                    <div class="quick-panel">
+                        <div class="quick-panel-header">
+                            <h3>
+                                ★ My Claimed Results
+                                <span style="font-size:13px;font-weight:400;color:#888;">
+                                    ${swims.length} result${swims.length !== 1 ? 's' : ''} · ${totalKm.toFixed(1)} km
+                                </span>
+                            </h3>
+                            <a href="/athlete.html" style="font-size:13px;white-space:nowrap;">Full profile →</a>
+                        </div>
+                        <div style="overflow-x:auto">
+                            <table class="panel-table">
+                                <thead>
+                                    <tr><th>Date</th><th>Race</th><th>Dist</th><th>Time</th><th>Overall</th></tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
+                        ${moreNote}
+                    </div>`;
+            } catch {
+                document.getElementById('mySwimsPanelWrap').innerHTML =
+                    `<div class="quick-panel"><p style="color:#c00;font-size:13px;">Could not load swims.</p></div>`;
+            }
+        }
+
+
+        // ── Swims to Claim panel ──────────────────────────────────
+
+        async function loadSwimsToClaim() {
+            if (!currentUser) return;
+            const wrap = document.getElementById('swimsToClaimPanelWrap');
+            wrap.innerHTML = `<div class="quick-panel"><p style="color:#999;font-size:13px;">Searching for your results…</p></div>`;
+
+            const forename = (currentUser.swimmerForename || '').trim();
+            const surname  = (currentUser.swimmerSurname  || '').trim();
+
+            if (!forename && !surname) {
+                wrap.innerHTML = `
+                    <div class="quick-panel">
+                        <div class="quick-panel-header"><h3>☆ Results to Claim</h3></div>
+                        <p style="color:#888;font-size:13px;margin:0;">
+                            Claim any result first so we know your name — then this will auto-search for matching results.
+                        </p>
+                    </div>`;
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({ pageSize: 2000 });
+                if (forename) params.append('forename', forename);
+                if (surname)  params.append('surname',  surname);
+
+                const [exactJson, nearJson] = await Promise.all([
+                    fetch(`/swims/search?${params}`).then(r => r.json()),
+                    fetch(`/swims/search-similar?forename=${encodeURIComponent(forename)}&surname=${encodeURIComponent(surname)}`)
+                        .then(r => r.json()).catch(() => ({ results: [] }))
+                ]);
+
+                swimsToClaimLoaded = true;
+                swimsToClaimData   = [
+                    ...exactJson.results,
+                    ...(nearJson.results || []).map(r => ({ ...r, _nearMatch: true }))
+                ].sort((a, b) => new Date(b.raceDate) - new Date(a.raceDate));
+
+                renderSwimsToClaim();
+            } catch {
+                document.getElementById('swimsToClaimPanelWrap').innerHTML =
+                    `<div class="quick-panel"><p style="color:#c00;font-size:13px;">Search failed.</p></div>`;
+            }
+        }
+
+        function renderSwimsToClaim() {
+            const wrap        = document.getElementById('swimsToClaimPanelWrap');
+            const cutoff      = new Date();
+            cutoff.setDate(cutoff.getDate() - RECENTLY_DAYS);
+            const unclaimed   = swimsToClaimData.filter(r => !claimedSwimIds.has(r.oceanswimsId));
+            const recentRows  = unclaimed.filter(r => r.raceDate && new Date(r.raceDate) >= cutoff);
+            const toShow      = swimsToClaimRecent ? recentRows : unclaimed;
+
+            if (unclaimed.length === 0) {
+                wrap.innerHTML = `
+                    <div class="quick-panel">
+                        <div class="quick-panel-header"><h3>☆ Results to Claim</h3></div>
+                        <p style="color:#888;font-size:13px;margin:0;">All matching results have been claimed! 🎉</p>
+                    </div>`;
+                return;
+            }
+
+            const recentBtnHtml = recentRows.length > 0 || swimsToClaimRecent
+                ? `<button class="today-btn${swimsToClaimRecent ? ' active' : ''}" onclick="toggleRecentFilter()">
+                       📅 ${swimsToClaimRecent ? 'Show all' : `Completed recently? (${recentRows.length})`}
+                   </button>`
+                : '';
+
+            const rows = toShow.slice(0, 100).map(r => {
+                const nameHtml = r._nearMatch
+                    ? `${r.forename || ''} ${r.surname || ''} <span class="near-badge">~</span>`
+                    : `${r.forename || ''} ${r.surname || ''}`;
+                return `
+                    <tr id="stc-row-${r.oceanswimsId}">
+                        <td style="white-space:nowrap">${panelFmtDate(r.raceDate)}</td>
+                        <td><a href="/results/${generateSlug(r.raceName)}-${r.raceId}">${r.raceName ?? '–'}</a></td>
+                        <td>${nameHtml}</td>
+                        <td style="text-align:right">${r.distance ?? '–'} km</td>
+                        <td style="text-align:right">${r.raceTime ?? '–'}</td>
+                        <td style="text-align:right">${r.overallPosition != null
+                            ? `${r.overallPosition} / ${r.overallCompetitors}` : '–'}</td>
+                        <td>
+                            <button class="claim-btn panel-claim-btn"
+                                    data-id="${r.oceanswimsId}"
+                                    data-near="${r._nearMatch ? '1' : '0'}"
+                                    data-rowname="${(r.forename || '') + ' ' + (r.surname || '')}"
+                                    title="Claim this result">☆</button>
+                        </td>
+                    </tr>`;
+            }).join('');
+
+            const noTodayMsg = swimsToClaimRecent && toShow.length === 0
+                ? `<p style="color:#888;font-size:13px;margin:0;">
+                       No unclaimed results in the last ${RECENTLY_DAYS} days.
+                       <button class="today-btn" onclick="toggleRecentFilter()">Show all ${unclaimed.length}</button>
+                   </p>`
+                : '';
+
+            const moreNote = toShow.length > 100
+                ? `<p style="font-size:12px;color:#999;margin:8px 0 0 0;">Showing first 100 results.</p>` : '';
+
+            wrap.innerHTML = `
+                <div class="quick-panel">
+                    <div class="quick-panel-header">
+                        <h3>
+                            ☆ Results to Claim
+                            <span style="font-size:13px;font-weight:400;color:#888;">${unclaimed.length} unclaimed</span>
+                            ${recentBtnHtml}
+                        </h3>
+                        <button class="btn-panel-toggle" onclick="claimAllInPanel()" style="font-size:12px;">
+                            ★ Claim All Shown
+                        </button>
+                    </div>
+                    ${noTodayMsg}
+                    ${rows ? `
+                        <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+                            <table class="panel-table">
+                                <thead>
+                                    <tr><th>Date</th><th>Race</th><th>Name</th><th>Dist</th><th>Time</th><th>Overall</th><th></th></tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
+                        ${moreNote}` : ''}
+                </div>`;
+        }
+
+        function toggleRecentFilter() {
+            swimsToClaimRecent = !swimsToClaimRecent;
+            renderSwimsToClaim();
+        }
+
+        // Claim all rows currently visible in the Results to Claim panel
+        async function claimAllInPanel() {
+            if (!currentUser) return;
+
+            const cutoff    = new Date();
+            cutoff.setDate(cutoff.getDate() - RECENTLY_DAYS);
+            const unclaimed = swimsToClaimData.filter(r => !claimedSwimIds.has(r.oceanswimsId));
+            const toShow    = swimsToClaimRecent
+                ? unclaimed.filter(r => r.raceDate && new Date(r.raceDate) >= cutoff)
+                : unclaimed;
+            const ids = toShow.map(r => r.oceanswimsId).filter(Boolean);
+            if (!ids.length) return;
+
+            try {
+                const res = await fetch('/swims/claim-all', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ ids })
+                });
+                if (res.ok) {
+                    const swimsRes = await fetch('/athlete/swims');
+                    if (swimsRes.ok) {
+                        const swims = await swimsRes.json();
+                        claimedSwimIds = new Set(swims.map(s => s.oceanswimsid));
+                    }
+                    mySwimsPanelLoaded = false;
+                    table.draw(false);
+                    updateClaimAllBtn();
+                    renderSwimsToClaim();
+                }
+            } catch { /* ignore */ }
+        }
+
+        // Click handler for ☆ buttons inside the Swims to Claim panel
+        $(document).on('click', '.panel-claim-btn', async function () {
+            const id      = parseInt($(this).data('id'));
+            const isNear  = $(this).data('near') === '1';
+            const rowName = $(this).data('rowname');
+
+            if (isNear) {
+                const ok = confirm(`This result shows the name as "${rowName.trim()}".\n\nIs this your swim?`);
+                if (!ok) return;
+            }
+
+            $(this).prop('disabled', true);
+            const endpoint = isNear ? `/swims/${id}/claim-manual` : `/swims/${id}/claim`;
+
+            try {
+                const res = await fetch(endpoint, { method: 'POST' });
+                if (res.ok) {
+                    claimedSwimIds.add(id);
+                    mySwimsPanelLoaded = false;
+                    table.draw(false);
+                    updateClaimAllBtn();
+                    $(`#stc-row-${id}`).fadeOut(200, () => renderSwimsToClaim());
+                } else if (res.status === 409) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || 'You have already claimed a result for this race.');
+                    $(this).prop('disabled', false);
+                } else {
+                    $(this).prop('disabled', false);
+                }
+            } catch {
+                $(this).prop('disabled', false);
+            }
+        });
+
+
+        // ── Bootstrap ────────────────────────────────────────────────
+        initAuth();   // check login state on every page load
+        initPage();   // load races / run search based on URL params
     </script>
 
-
     <script>
-        console.log("script loaded");
-
         fetch('/api/race-count')
             .then(res => res.json())
             .then(count => {
-                console.log("count:", count);
                 const el = document.getElementById('raceCount');
-                if (el) {
-                    el.innerText = count + ' races tracked';
-                } else {
-                    console.log("raceCount div not found");
-                }
+                if (el) el.innerText = count + ' races tracked';
             })
             .catch(err => console.error("fetch error:", err));
     </script>

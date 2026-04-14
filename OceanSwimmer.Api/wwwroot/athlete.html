@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>My Swims – OceanSwimmer</title>
+
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f9fafb;
+            color: #222;
+        }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+
+        .page-header .back-link {
+            margin-left: auto;
+            font-size: 14px;
+            color: #0066cc;
+        }
+
+        .auth-name {
+            font-size: 14px;
+            color: #555;
+            margin-left: 8px;
+        }
+
+        /* ── Empty state ─────────────────────────────────────────── */
+        #emptyState {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        #emptyState h2 { font-size: 1.3rem; color: #444; margin-bottom: 0.5rem; }
+        #emptyState p  { color: #777; margin-bottom: 1.5rem; }
+
+        .btn-primary {
+            display: inline-block;
+            padding: 10px 24px;
+            background: #0066cc;
+            color: #fff;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        .btn-primary:hover { background: #0052a3; text-decoration: none; color:#fff; }
+
+        /* ── Summary cards ───────────────────────────────────────── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 18px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .card .label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+
+        .card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            line-height: 1.1;
+        }
+
+        .card .sub {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        /* ── Section headings ────────────────────────────────────── */
+        .section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+
+        .section h2 {
+            font-size: 1.1rem;
+            margin: 0 0 1rem 0;
+            color: #333;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+
+        /* ── Chart filter ────────────────────────────────────────── */
+        .chart-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .chart-controls label { font-size: 13px; color: #555; margin-right: 4px; }
+
+        .filter-btn {
+            padding: 4px 12px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            background: #fff;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-btn.active {
+            background: #0066cc;
+            color: #fff;
+            border-color: #0066cc;
+        }
+
+        /* ── Tables ──────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 8px 10px;
+            background: #f3f4f6;
+            color: #555;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 7px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        tr:hover td { background: #fafafa; }
+
+        .medal { font-size: 16px; }
+
+        .pct-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pct-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: #0066cc;
+            transition: width 0.3s;
+        }
+
+        .pct-val { font-size: 12px; color: #555; white-space: nowrap; }
+
+        /* ── Season accordion ────────────────────────────────────── */
+        .season-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .season-header:hover { color: #0066cc; }
+
+        .season-header h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .season-meta {
+            font-size: 13px;
+            color: #888;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .season-toggle { font-size: 18px; transition: transform 0.2s; }
+        .season-toggle.open { transform: rotate(90deg); }
+
+        .season-body { overflow: hidden; }
+
+        .season-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .stat-chip {
+            background: #f3f4f6;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .stat-chip strong {
+            display: block;
+            font-size: 15px;
+            color: #222;
+            margin-bottom: 2px;
+        }
+
+        /* ── A Race star ──────────────────────────────────────────── */
+        .arace-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 2px;
+            color: #ccc;
+            transition: color 0.15s, transform 0.1s;
+        }
+
+        .arace-btn:hover   { color: #f5a623; transform: scale(1.2); }
+        .arace-btn.arace   { color: #f5a623; }
+        .arace-btn:disabled { opacity: 0.4; cursor: default; }
+
+        a { color: #0066cc; }
+
+        @media (max-width: 700px) {
+            body { padding: 1rem; }
+            .summary-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <a href="/" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit;">
+        <img src="/favicon-32x32.png" style="width:28px;height:28px;" alt="Home" />
+        <h1 style="margin:0;">My Swims</h1>
+    </a>
+    <span id="authName" class="auth-name"></span>
+    <a href="/" class="back-link">← Back to search</a>
+</div>
+
+<!-- Empty state -->
+<div id="emptyState" style="display:none">
+    <h2>No swims claimed yet</h2>
+    <p>Search for your name, then use the ☆ buttons or "Claim All" to add your results here.</p>
+    <a href="/" class="btn-primary">Search for my results</a>
+</div>
+
+<!-- Main athlete content -->
+<div id="athleteContent" style="display:none">
+
+    <!-- Career summary cards -->
+    <div class="summary-grid" id="summaryCards"></div>
+
+    <!-- Trend chart -->
+    <div class="section">
+        <h2>Performance Over Time</h2>
+        <div class="chart-controls">
+            <label>Show:</label>
+            <button class="filter-btn active" data-metric="overall"   onclick="setMetric('overall')">Overall %</button>
+            <button class="filter-btn"        data-metric="gender"    onclick="setMetric('gender')">Gender %</button>
+            <button class="filter-btn"        data-metric="category"  onclick="setMetric('category')">Category %</button>
+            <label style="margin-left:16px">Filter:</label>
+            <button class="filter-btn active" data-filter="all"       onclick="setFilter('all')">All swims</button>
+            <button class="filter-btn"        data-filter="arace"     onclick="setFilter('arace')" id="araceFilterBtn">A Races only</button>
+        </div>
+        <canvas id="trendChart" height="90"></canvas>
+    </div>
+
+    <!-- Best performances -->
+    <div class="section">
+        <h2>🏆 Best Performances</h2>
+        <table id="bestTable">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Race</th>
+                    <th>Date</th>
+                    <th>Dist</th>
+                    <th>Time</th>
+                    <th>Overall Pos</th>
+                    <th>Overall %</th>
+                    <th>Cat Pos</th>
+                    <th>Cat %</th>
+                </tr>
+            </thead>
+            <tbody id="bestBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Season breakdown -->
+    <div class="section">
+        <h2>By Season</h2>
+        <div id="seasonList"></div>
+    </div>
+
+</div>
+
+<script>
+    // ── State ────────────────────────────────────────────────────────
+    let swims        = [];
+    let currentUser  = null;
+    let chartMetric  = 'overall';
+    let chartFilter  = 'all';
+    let trendChart   = null;
+
+    // ── Init ─────────────────────────────────────────────────────────
+    (async function init() {
+        // Check login
+        try {
+            const r = await fetch('/auth/me');
+            if (!r.ok) { window.location.href = '/login/google'; return; }
+            currentUser = await r.json();
+            document.getElementById('authName').textContent =
+                currentUser.name || currentUser.email || '';
+        } catch {
+            window.location.href = '/login/google';
+            return;
+        }
+
+        // Load swims
+        try {
+            const r = await fetch('/athlete/swims');
+            if (r.ok) swims = await r.json();
+        } catch { swims = []; }
+
+        if (!swims || swims.length === 0) {
+            document.getElementById('emptyState').style.display = 'block';
+            return;
+        }
+
+        document.getElementById('athleteContent').style.display = 'block';
+        renderSummaryCards();
+        renderTrendChart();
+        renderBestPerformances();
+        renderSeasons();
+    })();
+
+
+    // ── Helpers ──────────────────────────────────────────────────────
+
+    function getSeason(dateStr) {
+        const d     = new Date(dateStr);
+        const year  = d.getFullYear();
+        const month = d.getMonth() + 1;   // 1–12
+        return month >= 7
+            ? `${year}/${(year + 1).toString().slice(2)}`
+            : `${year - 1}/${year.toString().slice(2)}`;
+    }
+
+    function fmtDate(dateStr) {
+        if (!dateStr) return '';
+        return new Date(dateStr).toLocaleDateString('en-GB',
+            { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function fmtPct(v) {
+        return v != null ? v.toFixed(1) + '%' : '–';
+    }
+
+    function fmtPos(pos, total) {
+        if (pos == null) return '–';
+        return total ? `${pos} / ${total}` : `${pos}`;
+    }
+
+    function calcKPace(timeStr, dist) {
+        if (!timeStr || !dist || dist === 0) return '–';
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return '–';
+        const secs = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2] || 0);
+        const paceS = secs / dist;
+        const m = Math.floor(paceS / 60);
+        const s = Math.round(paceS % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function pctBeaten(p) {
+        // Convert "position %" to "% of field beaten" so higher = better
+        return p != null ? (100 - p).toFixed(1) : null;
+    }
+
+
+    // ── Summary cards ────────────────────────────────────────────────
+
+    function renderSummaryCards() {
+        const totalKm = swims.reduce((s, r) => s + (r.Distance || 0), 0);
+        const seasons  = new Set(swims.map(r => getSeason(r.RaceDate))).size;
+
+        // Best = highest OverallPercentile (higher = beat more of the field)
+        const best = swims
+            .filter(r => r.OverallPercentile != null)
+            .sort((a, b) => b.OverallPercentile - a.OverallPercentile)[0];
+
+        const avgPct = swims.filter(r => r.OverallPercentile != null);
+        const avg    = avgPct.length
+            ? (avgPct.reduce((s, r) => s + r.OverallPercentile, 0) / avgPct.length).toFixed(1)
+            : null;
+
+        document.getElementById('summaryCards').innerHTML = `
+            <div class="card">
+                <div class="label">Swims Claimed</div>
+                <div class="value">${swims.length}</div>
+            </div>
+            <div class="card">
+                <div class="label">Total Distance</div>
+                <div class="value">${totalKm.toFixed(1)}<span style="font-size:1rem;font-weight:400"> km</span></div>
+            </div>
+            <div class="card">
+                <div class="label">Seasons Active</div>
+                <div class="value">${seasons}</div>
+            </div>
+            <div class="card">
+                <div class="label">Best Overall</div>
+                <div class="value">${best ? fmtPct(best.OverallPercentile) : '–'}</div>
+                <div class="sub">${best ? best.RaceName : ''}</div>
+            </div>
+            <div class="card">
+                <div class="label">Avg Overall %</div>
+                <div class="value">${avg ? avg + '%' : '–'}</div>
+                <div class="sub">lower is better</div>
+            </div>`;
+    }
+
+
+    // ── Trend chart ──────────────────────────────────────────────────
+
+    function getChartData() {
+        const filtered = chartFilter === 'arace'
+            ? swims.filter(s => s.IsARace)
+            : swims;
+
+        return filtered
+            .filter(s => s.RaceDate)
+            .map(s => {
+                const raw = chartMetric === 'overall'   ? s.OverallPercentile
+                          : chartMetric === 'gender'    ? s.GenderPercentile
+                          : s.CategoryPercentile;
+                return {
+                    x:     new Date(s.RaceDate),
+                    y:     raw != null ? parseFloat(raw.toFixed(1)) : null,
+                    label: `${s.RaceName} (${fmtDate(s.RaceDate)})`
+                };
+            })
+            .filter(p => p.y != null)
+            .sort((a, b) => a.x - b.x);
+    }
+
+    function renderTrendChart() {
+        const pts    = getChartData();
+        const labels = { overall: 'Overall', gender: 'Gender', category: 'Category' };
+        const ctx    = document.getElementById('trendChart').getContext('2d');
+
+        if (trendChart) trendChart.destroy();
+
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: `${labels[chartMetric]} % of field beaten`,
+                    data:  pts,
+                    borderColor:     '#0066cc',
+                    backgroundColor: 'rgba(0,102,204,0.15)',
+                    pointBackgroundColor: '#0066cc',
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'month', tooltipFormat: 'dd MMM yyyy' },
+                        grid: { display: false }
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        title: { display: true, text: 'Overall % (higher = better)' },
+                        ticks: { callback: v => v + '%' }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: items => items[0].raw.label,
+                            label: items => `Overall: ${items[0].raw.y}%`
+                        }
+                    },
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    function setMetric(m) {
+        chartMetric = m;
+        document.querySelectorAll('[data-metric]').forEach(b =>
+            b.classList.toggle('active', b.dataset.metric === m));
+        renderTrendChart();
+    }
+
+    function setFilter(f) {
+        chartFilter = f;
+        document.querySelectorAll('[data-filter]').forEach(b =>
+            b.classList.toggle('active', b.dataset.filter === f));
+        renderTrendChart();
+    }
+
+
+    // ── Best performances ────────────────────────────────────────────
+
+    function renderBestPerformances() {
+        const medals = ['🥇','🥈','🥉'];
+        const top = swims
+            .filter(r => r.OverallPercentile != null)
+            .sort((a, b) => b.OverallPercentile - a.OverallPercentile)
+            .slice(0, 10);
+
+        const maxPct = Math.max(...top.map(r => r.OverallPercentile));
+
+        document.getElementById('bestBody').innerHTML = top.map((r, i) => `
+            <tr>
+                <td class="medal">${medals[i] || (i + 1)}</td>
+                <td><a href="/results/${slugify(r.RaceName)}-${r.raceid}">${r.RaceName}</a></td>
+                <td>${fmtDate(r.RaceDate)}</td>
+                <td>${r.Distance ?? '–'} km</td>
+                <td>${r.RaceTime ?? '–'}</td>
+                <td>${fmtPos(r.OverallPosition, r.OverallCompetitors)}</td>
+                <td>
+                    <div class="pct-bar-wrap">
+                        <div class="pct-bar" style="width:${(r.OverallPercentile/maxPct*120).toFixed(0)}px"></div>
+                        <span class="pct-val">${fmtPct(r.OverallPercentile)}</span>
+                    </div>
+                </td>
+                <td>${fmtPos(r.CategoryPosition, r.CategoryCompetitors)}</td>
+                <td>${fmtPct(r.CategoryPercentile)}</td>
+            </tr>`).join('');
+    }
+
+
+    // ── Season breakdown ─────────────────────────────────────────────
+
+    function renderSeasons() {
+        // Group by season, newest first
+        const grouped = {};
+        swims.forEach(s => {
+            const key = getSeason(s.RaceDate);
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(s);
+        });
+
+        const seasonKeys = Object.keys(grouped).sort().reverse();
+        const container  = document.getElementById('seasonList');
+        container.innerHTML = '';
+
+        seasonKeys.forEach((season, idx) => {
+            const rows  = grouped[season].sort((a, b) => new Date(a.RaceDate) - new Date(b.RaceDate));
+            const km    = rows.reduce((s, r) => s + (r.Distance || 0), 0);
+            const pcts  = rows.filter(r => r.OverallPercentile != null);
+            const avgP  = pcts.length
+                ? (pcts.reduce((s, r) => s + r.OverallPercentile, 0) / pcts.length).toFixed(1)
+                : null;
+            const catPcts  = rows.filter(r => r.CategoryPercentile != null);
+            const avgCat   = catPcts.length
+                ? (catPcts.reduce((s, r) => s + r.CategoryPercentile, 0) / catPcts.length).toFixed(1)
+                : null;
+            const topTens  = rows.filter(r => r.CategoryPosition != null && r.CategoryPosition <= 10).length;
+
+            const div = document.createElement('div');
+            div.style.borderBottom = '1px solid #e5e7eb';
+            div.style.paddingBottom = '4px';
+
+            const isOpen = idx === 0; // first season open by default
+
+            div.innerHTML = `
+                <div class="season-header" onclick="toggleSeason(this)">
+                    <span class="season-toggle${isOpen ? ' open' : ''}">›</span>
+                    <h3>${season}</h3>
+                    <span class="season-meta">
+                        ${rows.length} swims · ${km.toFixed(2)} km${avgP ? ' · avg ' + avgP + '% overall' : ''}
+                    </span>
+                </div>
+                <div class="season-body" style="display:${isOpen ? 'block' : 'none'}">
+                    <div class="season-stats">
+                        <div class="stat-chip"><strong>${rows.length}</strong>Swims</div>
+                        <div class="stat-chip"><strong>${km.toFixed(2)} km</strong>Distance</div>
+                        ${avgP   ? `<div class="stat-chip"><strong>${avgP}%</strong>Avg Overall %</div>` : ''}
+                        ${avgCat ? `<div class="stat-chip"><strong>${avgCat}%</strong>Avg Category %</div>` : ''}
+                        <div class="stat-chip"><strong>${topTens}</strong>Category Top 10s</div>
+                    </div>
+                    <div style="overflow-x:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>A</th>
+                                <th>Date</th>
+                                <th>Race</th>
+                                <th>Dist</th>
+                                <th>Time</th>
+                                <th>K Pace</th>
+                                <th>Ovrl Pos</th>
+                                <th>Ovrl %</th>
+                                <th>Cat Pos</th>
+                                <th>Cat %</th>
+                                <th>Gender Pos</th>
+                                <th>Gender %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(r => `
+                            <tr>
+                                <td>
+                                    <button class="arace-btn${r.IsARace ? ' arace' : ''}"
+                                            data-id="${r.oceanswimsid}"
+                                            onclick="toggleARace(this)"
+                                            title="${r.IsARace ? 'Remove A Race' : 'Mark as A Race'}">★</button>
+                                </td>
+                                <td style="white-space:nowrap">${fmtDate(r.RaceDate)}</td>
+                                <td><a href="/results/${slugify(r.RaceName)}-${r.raceid}">${r.RaceName}</a></td>
+                                <td>${r.Distance ?? '–'}</td>
+                                <td>${r.RaceTime ?? '–'}</td>
+                                <td>${calcKPace(r.RaceTime, r.Distance)}</td>
+                                <td>${fmtPos(r.OverallPosition, r.OverallCompetitors)}</td>
+                                <td>${fmtPct(r.OverallPercentile)}</td>
+                                <td>${fmtPos(r.CategoryPosition, r.CategoryCompetitors)}</td>
+                                <td>${fmtPct(r.CategoryPercentile)}</td>
+                                <td>${fmtPos(r.GenderPosition, r.GenderCompetitors)}</td>
+                                <td>${fmtPct(r.GenderPercentile)}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                    </div>
+                </div>`;
+
+            container.appendChild(div);
+        });
+    }
+
+    function toggleSeason(header) {
+        const body   = header.nextElementSibling;
+        const toggle = header.querySelector('.season-toggle');
+        const open   = body.style.display !== 'none';
+        body.style.display   = open ? 'none' : 'block';
+        toggle.classList.toggle('open', !open);
+    }
+
+
+    // ── A Race toggle ─────────────────────────────────────────────────
+    // ⚠️  Requires: ALTER TABLE dbo.AthleteResults ADD IsARace bit NOT NULL DEFAULT 0
+
+    async function toggleARace(btn) {
+        const id      = parseInt(btn.dataset.id);
+        const isARace = btn.classList.contains('arace');
+        const method  = isARace ? 'DELETE' : 'POST';
+
+        btn.disabled = true;
+        try {
+            const res = await fetch(`/swims/${id}/a-race`, { method });
+            if (res.ok) {
+                btn.classList.toggle('arace', !isARace);
+                btn.title = isARace ? 'Mark as A Race' : 'Remove A Race';
+
+                // Update in-memory swims too (for chart filter)
+                const swim = swims.find(s => s.oceanswimsid === id);
+                if (swim) swim.IsARace = !isARace;
+            }
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+
+    // ── Slug helper (mirrors server-side) ────────────────────────────
+
+    function slugify(input) {
+        if (!input) return '';
+        return input
+            .toLowerCase()
+            .replace(/\|/g, '')
+            .replace(/[^\w\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+</script>
+
+</body>
+</html>
