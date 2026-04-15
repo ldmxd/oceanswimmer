@@ -614,9 +614,12 @@ app.MapGet("/athlete/swims", async (HttpContext ctx) =>
             o.CategoryCompetitors,
             o.CategoryPercentile,
             ar.ClaimedAt,
-            ar.IsARace
+            ar.IsARace,
+            rt.RaceTypeDescription
         FROM auth.AthleteResults ar
         JOIN dbo.vw_OceanSwims_Search o ON o.oceanswimsid = ar.OceanSwimsId
+        LEFT JOIN dbo.Race r ON r.raceid = o.raceid
+        LEFT JOIN RaceResult.dbo.RaceType rt ON rt.racetypeid = r.racetypeid
         WHERE ar.UserId = @userId
         ORDER BY o.RaceDate DESC",
         new { userId });

@@ -306,13 +306,29 @@
             <label style="margin-left:16px">Filter:</label>
             <button class="filter-btn active" data-filter="all"       onclick="setFilter('all')">All swims</button>
             <button class="filter-btn"        data-filter="arace"     onclick="setFilter('arace')" id="araceFilterBtn">A Races only</button>
+            <select id="chartRaceType" onchange="renderTrendChart()" style="margin-left:8px; font-size:13px; padding:3px 8px; border:1px solid #ccc; border-radius:6px; color:#555; cursor:pointer;">
+                <option value="all">All types</option>
+            </select>
         </div>
         <canvas id="trendChart" height="90"></canvas>
     </div>
 
     <!-- Best performances -->
     <div class="section">
-        <h2>🏆 Best Performances</h2>
+        <h2 style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <span>🏆 Best Performances</span>
+            <div style="display:flex; gap:8px;">
+                <select id="bestRaceType" onchange="renderBestPerformances()" style="font-size:13px; padding:3px 8px; border:1px solid #ccc; border-radius:6px; color:#555; cursor:pointer;">
+                    <option value="all">All types</option>
+                </select>
+                <select id="bestCount" onchange="renderBestPerformances()" style="font-size:13px; padding:3px 8px; border:1px solid #ccc; border-radius:6px; color:#555; cursor:pointer;">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="20">Top 20</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+        </h2>
         <table id="bestTable">
             <thead>
                 <tr>
@@ -373,6 +389,7 @@
         }
 
         document.getElementById('athleteContent').style.display = 'block';
+        populateRaceTypeFilter();
         renderSummaryCards();
         renderTrendChart();
         renderBestPerformances();
@@ -423,6 +440,22 @@
     }
 
 
+    // ── Race type filter ─────────────────────────────────────────────
+
+    function populateRaceTypeFilter() {
+        const types = [...new Set(swims.map(s => s.RaceTypeDescription).filter(Boolean))].sort();
+        ['bestRaceType', 'chartRaceType'].forEach(id => {
+            const sel = document.getElementById(id);
+            types.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                sel.appendChild(opt);
+            });
+        });
+    }
+
+
     // ── Summary cards ────────────────────────────────────────────────
 
     function renderSummaryCards() {
@@ -438,6 +471,19 @@
         const avg    = avgPct.length
             ? (avgPct.reduce((s, r) => s + r.OverallPercentile, 0) / avgPct.length).toFixed(1)
             : null;
+
+        const overallWins    = swims.filter(r => r.OverallPosition === 1).length;
+        const overallPodiums = swims.filter(r => r.OverallPosition != null && r.OverallPosition <= 3).length;
+        const overallTop10s  = swims.filter(r => r.OverallPosition != null && r.OverallPosition <= 10).length;
+
+        const avgCatPct = swims.filter(r => r.CategoryPercentile != null);
+        const avgCat    = avgCatPct.length
+            ? (avgCatPct.reduce((s, r) => s + r.CategoryPercentile, 0) / avgCatPct.length).toFixed(1)
+            : null;
+
+        const catWins    = swims.filter(r => r.CategoryPosition === 1).length;
+        const catPodiums = swims.filter(r => r.CategoryPosition != null && r.CategoryPosition <= 3).length;
+        const catTop10s  = swims.filter(r => r.CategoryPosition != null && r.CategoryPosition <= 10).length;
 
         document.getElementById('summaryCards').innerHTML = `
             <div class="card">
@@ -461,6 +507,26 @@
                 <div class="label">Avg Overall %</div>
                 <div class="value">${avg ? avg + '%' : '–'}</div>
                 <div class="sub">lower is better</div>
+            </div>
+            ${overallWins    ? `<div class="card"><div class="label">Overall Wins</div><div class="value">${overallWins}</div></div>`       : ''}
+            ${overallPodiums ? `<div class="card"><div class="label">Overall Podiums</div><div class="value">${overallPodiums}</div></div>` : ''}
+            ${overallTop10s  ? `<div class="card"><div class="label">Overall Top 10s</div><div class="value">${overallTop10s}</div></div>`  : ''}
+            <div class="card">
+                <div class="label">Avg Category %</div>
+                <div class="value">${avgCat ? avgCat + '%' : '–'}</div>
+                <div class="sub">lower is better</div>
+            </div>
+            <div class="card">
+                <div class="label">Category Wins</div>
+                <div class="value">${catWins}</div>
+            </div>
+            <div class="card">
+                <div class="label">Category Podiums</div>
+                <div class="value">${catPodiums}</div>
+            </div>
+            <div class="card">
+                <div class="label">Category Top 10s</div>
+                <div class="value">${catTop10s}</div>
             </div>`;
     }
 
@@ -468,9 +534,9 @@
     // ── Trend chart ──────────────────────────────────────────────────
 
     function getChartData() {
-        const filtered = chartFilter === 'arace'
-            ? swims.filter(s => s.IsARace)
-            : swims;
+        const typeFilter = document.getElementById('chartRaceType').value;
+        const filtered = (chartFilter === 'arace' ? swims.filter(s => s.IsARace) : swims)
+            .filter(s => typeFilter === 'all' || s.RaceTypeDescription === typeFilter);
 
         return filtered
             .filter(s => s.RaceDate)
@@ -557,10 +623,23 @@
 
     function renderBestPerformances() {
         const medals = ['🥇','🥈','🥉'];
-        const top = swims
-            .filter(r => r.OverallPercentile != null)
-            .sort((a, b) => b.OverallPercentile - a.OverallPercentile)
-            .slice(0, 10);
+
+        const typeFilter = document.getElementById('bestRaceType').value;
+        const filtered   = typeFilter === 'all' ? swims : swims.filter(s => s.RaceTypeDescription === typeFilter);
+
+        const overallWins  = filtered.filter(r => r.OverallPosition === 1);
+        const categoryWins = filtered.filter(r => r.CategoryPosition === 1 && r.OverallPosition !== 1);
+
+        const priorityIds = new Set([...overallWins, ...categoryWins].map(r => r.oceanswimsid));
+
+        const rest = filtered
+            .filter(r => r.OverallPercentile != null && !priorityIds.has(r.oceanswimsid))
+            .sort((a, b) => b.OverallPercentile - a.OverallPercentile);
+
+        const countVal  = document.getElementById('bestCount').value;
+        const limit     = countVal === 'all' ? Infinity : parseInt(countVal);
+        const remaining = Math.max(0, limit - overallWins.length - categoryWins.length);
+        const top = [...overallWins, ...categoryWins, ...rest.slice(0, remaining)];
 
         const maxPct = Math.max(...top.map(r => r.OverallPercentile));
 
@@ -610,7 +689,12 @@
             const avgCat   = catPcts.length
                 ? (catPcts.reduce((s, r) => s + r.CategoryPercentile, 0) / catPcts.length).toFixed(1)
                 : null;
-            const topTens  = rows.filter(r => r.CategoryPosition != null && r.CategoryPosition <= 10).length;
+            const overallWins    = rows.filter(r => r.OverallPosition === 1).length;
+            const overallPodiums = rows.filter(r => r.OverallPosition != null && r.OverallPosition <= 3).length;
+            const overallTop10s  = rows.filter(r => r.OverallPosition != null && r.OverallPosition <= 10).length;
+            const catWins        = rows.filter(r => r.CategoryPosition === 1).length;
+            const catPodiums     = rows.filter(r => r.CategoryPosition != null && r.CategoryPosition <= 3).length;
+            const topTens        = rows.filter(r => r.CategoryPosition != null && r.CategoryPosition <= 10).length;
 
             const div = document.createElement('div');
             div.style.borderBottom = '1px solid #e5e7eb';
@@ -631,7 +715,12 @@
                         <div class="stat-chip"><strong>${rows.length}</strong>Swims</div>
                         <div class="stat-chip"><strong>${km.toFixed(2)} km</strong>Distance</div>
                         ${avgP   ? `<div class="stat-chip"><strong>${avgP}%</strong>Avg Overall %</div>` : ''}
+                        ${overallWins    ? `<div class="stat-chip"><strong>${overallWins}</strong>Overall Wins</div>`    : ''}
+                        ${overallPodiums ? `<div class="stat-chip"><strong>${overallPodiums}</strong>Overall Podiums</div>` : ''}
+                        ${overallTop10s  ? `<div class="stat-chip"><strong>${overallTop10s}</strong>Overall Top 10s</div>`  : ''}
                         ${avgCat ? `<div class="stat-chip"><strong>${avgCat}%</strong>Avg Category %</div>` : ''}
+                        ${catWins    ? `<div class="stat-chip"><strong>${catWins}</strong>Category Wins</div>`    : ''}
+                        ${catPodiums ? `<div class="stat-chip"><strong>${catPodiums}</strong>Category Podiums</div>` : ''}
                         <div class="stat-chip"><strong>${topTens}</strong>Category Top 10s</div>
                     </div>
                     <div style="overflow-x:auto">
