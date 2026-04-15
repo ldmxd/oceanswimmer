@@ -1032,14 +1032,15 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
 
     using var conn = new SqlConnection(connStr);
 
-    var race = await conn.QueryFirstOrDefaultAsync<string>(
-        "SELECT TOP 1 RaceName FROM dbo.vw_OceanSwims_Search WHERE raceid = @raceId",
+    var race = await conn.QueryFirstOrDefaultAsync(
+        "SELECT TOP 1 RaceName, RaceDate, Distance, OverallCompetitors FROM dbo.vw_OceanSwims_Search WHERE raceid = @raceId",
         new { raceId });
 
     if (race == null)
         return Results.NotFound();
 
-    var expectedSlug = SlugHelper.GenerateSlug(race);
+    string raceName = race.RaceName ?? "";
+    var expectedSlug = SlugHelper.GenerateSlug(raceName);
 
     if (!slug.StartsWith(expectedSlug))
         return Results.Redirect($"/results/{expectedSlug}-{raceId}", true);
@@ -1049,7 +1050,21 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
     if (!File.Exists(filePath))
         return Results.Problem("index.html not found");
 
-    return Results.File(filePath, "text/html");
+    var html = await File.ReadAllTextAsync(filePath);
+
+    // Build race-specific title and description
+    var dateStr = race.RaceDate != null
+        ? ((DateTime)race.RaceDate).ToString("d MMM yyyy")
+        : "";
+    var distStr = race.Distance != null ? $"{race.Distance}km " : "";
+    var countStr = race.OverallCompetitors != null ? $"{race.OverallCompetitors} finishers. " : "";
+    var description = $"Results for {raceName}{(dateStr != "" ? " – " + dateStr : "")}. {countStr}View times, positions and category results on OceanSwimmer.";
+
+    html = html.Replace(
+        "<title>OceanSwimmer Results Search</title>",
+        $"<title>{System.Net.WebUtility.HtmlEncode(raceName)} Results | OceanSwimmer</title>\n    <meta name=\"description\" content=\"{System.Net.WebUtility.HtmlEncode(description)}\" />");
+
+    return Results.Content(html, "text/html");
 });
 
 app.Run();
