@@ -327,6 +327,68 @@ app.MapPost("/auth/login-password", async (LoginRequest req, HttpContext ctx) =>
 });
 
 
+// Request password reset — always returns 200 to avoid email enumeration
+app.MapPost("/auth/forgot-password", async (ForgotPasswordRequest req) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Email))
+        return Results.BadRequest(new { error = "Email is required." });
+
+    var email = req.Email.Trim().ToLower();
+
+    using var conn = new SqlConnection(connStr);
+
+    var userId = await conn.QueryFirstOrDefaultAsync<int?>(
+        "SELECT UserId FROM auth.Users WHERE Email = @email AND AuthProvider = 'Local'",
+        new { email });
+
+    if (userId != null)
+    {
+        var token  = Guid.NewGuid().ToString("N");
+        var expiry = DateTime.UtcNow.AddHours(1);
+
+        await conn.ExecuteAsync(
+            "UPDATE auth.Users SET ResetToken = @token, ResetTokenExpiry = @expiry WHERE UserId = @userId",
+            new { token, expiry, userId });
+
+        await SendPasswordResetEmailAsync(email, token);
+    }
+
+    return Results.Ok(new { message = "If an account with that email exists, you will receive a reset link shortly." });
+});
+
+// Reset password using the token from the email link
+app.MapPost("/auth/reset-password", async (ResetPasswordRequest req) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.NewPassword))
+        return Results.BadRequest(new { error = "Token and new password are required." });
+
+    if (req.NewPassword.Length < 8)
+        return Results.BadRequest(new { error = "Password must be at least 8 characters." });
+
+    using var conn = new SqlConnection(connStr);
+
+    var user = await conn.QueryFirstOrDefaultAsync(@"
+        SELECT UserId FROM auth.Users
+        WHERE ResetToken = @token
+          AND ResetTokenExpiry > GETUTCDATE()
+          AND AuthProvider = 'Local'",
+        new { token = req.Token });
+
+    if (user == null)
+        return Results.BadRequest(new { error = "This reset link has expired or is invalid." });
+
+    var hash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+
+    await conn.ExecuteAsync(@"
+        UPDATE auth.Users
+        SET PasswordHash = @hash, ResetToken = NULL, ResetTokenExpiry = NULL
+        WHERE UserId = @userId",
+        new { hash, userId = (int)user.UserId });
+
+    return Results.Ok(new { message = "Password updated. You can now sign in with your new password." });
+});
+
+
 // ---------------------------------------------------------------------------
 // CLAIM ENDPOINTS  (requires login)
 // ---------------------------------------------------------------------------
@@ -1028,7 +1090,47 @@ async Task SendVerificationEmailAsync(string toEmail, string token)
     await client.SendEmailAsync(msg);
 }
 
+async Task SendPasswordResetEmailAsync(string toEmail, string token)
+{
+    var apiKey    = builder.Configuration["SendGrid:ApiKey"];
+    var fromEmail = builder.Configuration["SendGrid:FromEmail"] ?? "noreply@oceanswimmer.com.au";
+    var fromName  = builder.Configuration["SendGrid:FromName"]  ?? "OceanSwimmer";
+    var baseUrl   = builder.Configuration["App:BaseUrl"]        ?? "https://oceanswimmer.com.au";
+
+    var resetUrl = $"{baseUrl}/reset-password.html?token={token}";
+
+    if (string.IsNullOrWhiteSpace(apiKey) || apiKey.StartsWith("YOUR_"))
+    {
+        Console.WriteLine($"[DEV] Password reset link: {resetUrl}");
+        return;
+    }
+
+    var client = new SendGridClient(apiKey);
+    var msg    = new SendGridMessage
+    {
+        From             = new EmailAddress(fromEmail, fromName),
+        Subject          = "Reset your OceanSwimmer password",
+        PlainTextContent = $"Hi,\n\nYou requested a password reset for your OceanSwimmer account. Click the link below to set a new password:\n\n{resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n— The OceanSwimmer team",
+        HtmlContent      = $@"
+            <p>Hi,</p>
+            <p>You requested a password reset for your OceanSwimmer account.</p>
+            <p style=""margin:24px 0"">
+                <a href=""{resetUrl}""
+                   style=""background:#0066cc;color:#fff;padding:12px 24px;border-radius:6px;
+                           text-decoration:none;font-weight:600;font-size:15px;"">
+                    Reset my password
+                </a>
+            </p>
+            <p style=""color:#888;font-size:13px;"">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+            <p style=""color:#888;font-size:13px;"">— The OceanSwimmer team</p>"
+    };
+    msg.AddTo(new EmailAddress(toEmail));
+    await client.SendEmailAsync(msg);
+}
+
 // ── Request models ───────────────────────────────────────────────────────────
 record ClaimAllRequest(List<int> Ids);
 record RegisterRequest(string Email, string Password);
 record LoginRequest(string Email, string Password);
+record ForgotPasswordRequest(string Email);
+record ResetPasswordRequest(string Token, string NewPassword);
