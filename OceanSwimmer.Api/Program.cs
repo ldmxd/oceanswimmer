@@ -636,20 +636,74 @@ app.MapPost("/api/feedback", async (HttpRequest request) =>
 {
     var form = await request.ReadFormAsync();
 
-    var name    = form["FeedbackName"];
-    var email   = form["FeedbackEmail"];
-    var type    = form["RequestType"];
-    var message = form["FeedbackMessage"];
-    var pageUrl = form["PageUrl"];
+    var name     = form["FeedbackName"].ToString().Trim();
+    var email    = form["FeedbackEmail"].ToString().Trim();
+    var type     = form["RequestType"].ToString().Trim();
+    var message  = form["FeedbackMessage"].ToString().Trim();
+    var pageUrl  = form["PageUrl"].ToString().Trim();
+    var honeypot = form["Website"].ToString();   // hidden field — humans never fill this
+
+    // Browser metadata for triage / additional spam signals
+    var userIp    = request.HttpContext.Connection.RemoteIpAddress?.ToString();
+    var userAgent = request.Headers.UserAgent.ToString();
+
+    // ── Spam guards ──────────────────────────────────────────────────────────
+    // Each guard returns the thanks page silently so bots don't learn what
+    // tripped them. Real users will never hit these branches.
+
+    // 1. Honeypot — bots fill every field, including hidden ones
+    if (!string.IsNullOrWhiteSpace(honeypot))
+    {
+        Console.WriteLine($"[Feedback] Rejected (honeypot): ip={userIp} ua={userAgent}");
+        return Results.Redirect("/feedback-thanks.html");
+    }
+
+    // 2. PageUrl is set client-side via window.location.href. Bots that POST
+    //    directly to /api/feedback skip the script entirely and leave it blank
+    //    — or stuff a junk value that doesn't match our domain.
+    if (string.IsNullOrWhiteSpace(pageUrl) ||
+        !(pageUrl.Contains("oceanswimmer.com.au", StringComparison.OrdinalIgnoreCase) ||
+          pageUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase)))
+    {
+        Console.WriteLine($"[Feedback] Rejected (bad PageUrl='{pageUrl}'): ip={userIp}");
+        return Results.Redirect("/feedback-thanks.html");
+    }
+
+    // 3. Real browsers always send a User-Agent. Empty/missing = scripted POST.
+    if (string.IsNullOrWhiteSpace(userAgent))
+    {
+        Console.WriteLine($"[Feedback] Rejected (no User-Agent): ip={userIp}");
+        return Results.Redirect("/feedback-thanks.html");
+    }
+
+    // 4. Required field — surface a real error here, this can hit real users
+    if (string.IsNullOrWhiteSpace(message))
+        return Results.BadRequest(new { error = "Message is required." });
+
+    // 5. Link-stuffed marketing spam — count URLs in the message
+    var urlCount = System.Text.RegularExpressions.Regex.Matches(
+        message, @"https?://", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
+    if (urlCount > 2)
+    {
+        Console.WriteLine($"[Feedback] Rejected (too many URLs={urlCount}): ip={userIp}");
+        return Results.Redirect("/feedback-thanks.html");
+    }
+
+    // 6. Short pitch + a link is a classic bot pattern (e.g. "Hi check this out https://...")
+    if (message.Length < 40 && urlCount > 0)
+    {
+        Console.WriteLine($"[Feedback] Rejected (short+link): ip={userIp}");
+        return Results.Redirect("/feedback-thanks.html");
+    }
 
     using var conn = new SqlConnection(connStr);
 
     await conn.ExecuteAsync(@"
         INSERT INTO dbo.Feedback
-        (FeedbackName, FeedbackEmail, RequestType, FeedbackMessage, PageUrl)
+        (FeedbackName, FeedbackEmail, RequestType, FeedbackMessage, PageUrl, UserIP, UserAgent)
         VALUES
-        (@name, @email, @type, @message, @pageUrl)",
-        new { name, email, type, message, pageUrl });
+        (@name, @email, @type, @message, @pageUrl, @userIp, @userAgent)",
+        new { name, email, type, message, pageUrl, userIp, userAgent });
 
     return Results.Redirect("/feedback-thanks.html");
 });
