@@ -244,11 +244,22 @@ app.MapPost("/auth/register", async (RegisterRequest req) =>
     var hash    = BCrypt.Net.BCrypt.HashPassword(req.Password);
     var token   = Guid.NewGuid().ToString("N");
     var expiry  = DateTime.UtcNow.AddHours(24);
+    // Stamp NotifyOptedInAt only when the box was actually ticked, so we have
+    // proof-of-consent. Default off (column default = 0) leaves it null.
+    DateTime? optedInAt = req.NotifyUnclaimedResults ? DateTime.UtcNow : (DateTime?)null;
 
     await conn.ExecuteAsync(@"
-        INSERT INTO auth.Users (Email, AuthProvider, ProviderId, CreatedAt, PasswordHash, EmailVerified, VerificationToken, VerificationTokenExpiry)
-        VALUES (@email, 'Local', @email, GETUTCDATE(), @hash, 0, @token, @expiry)",
-        new { email, hash, token, expiry });
+        INSERT INTO auth.Users (
+            Email, AuthProvider, ProviderId, CreatedAt, PasswordHash,
+            EmailVerified, VerificationToken, VerificationTokenExpiry,
+            NotifyUnclaimedResults, NotifyOptedInAt)
+        VALUES (
+            @email, 'Local', @email, GETUTCDATE(), @hash,
+            0, @token, @expiry,
+            @notify, @optedInAt)",
+        new { email, hash, token, expiry,
+              notify = req.NotifyUnclaimedResults,
+              optedInAt });
 
     await SendVerificationEmailAsync(email, token);
 
@@ -386,6 +397,108 @@ app.MapPost("/auth/reset-password", async (ResetPasswordRequest req) =>
         new { hash, userId = (int)user.UserId });
 
     return Results.Ok(new { message = "Password updated. You can now sign in with your new password." });
+});
+
+
+// ---------------------------------------------------------------------------
+// ACCOUNT SETTINGS  (requires login)
+// ---------------------------------------------------------------------------
+
+// Get current account settings — notification prefs + email (shown in the
+// delete-account confirmation) + auth provider (so the UI can decide whether
+// to show e.g. "Change password" for Local-only accounts).
+app.MapGet("/auth/settings", async (HttpContext ctx) =>
+{
+    var userIdStr = ctx.User.FindFirst("userId")?.Value;
+    if (userIdStr == null) return Results.Unauthorized();
+    var userId = int.Parse(userIdStr);
+
+    using var conn = new SqlConnection(connStr);
+    var settings = await conn.QueryFirstOrDefaultAsync(@"
+        SELECT Email, NotifyUnclaimedResults, NotifyOptedInAt, AuthProvider
+        FROM auth.Users WHERE UserId = @userId",
+        new { userId });
+
+    if (settings == null) return Results.Unauthorized();
+
+    return Results.Ok(new
+    {
+        email                  = (string)settings.Email,
+        notifyUnclaimedResults = (bool)settings.NotifyUnclaimedResults,
+        notifyOptedInAt        = (DateTime?)settings.NotifyOptedInAt,
+        authProvider           = (string)settings.AuthProvider
+    });
+});
+
+// Update notification preference. NotifyOptedInAt is stamped only on the
+// first 0 -> 1 transition (proof-of-consent date); once set, we preserve it
+// permanently — even if the member opts out and back in — so we always have
+// evidence of when they originally agreed.
+app.MapPut("/auth/settings", async (UpdateSettingsRequest req, HttpContext ctx) =>
+{
+    var userIdStr = ctx.User.FindFirst("userId")?.Value;
+    if (userIdStr == null) return Results.Unauthorized();
+    var userId = int.Parse(userIdStr);
+
+    using var conn = new SqlConnection(connStr);
+    await conn.ExecuteAsync(@"
+        UPDATE auth.Users
+        SET NotifyUnclaimedResults = @notify,
+            NotifyOptedInAt = CASE
+                WHEN @notify = 1 AND NotifyOptedInAt IS NULL THEN GETUTCDATE()
+                ELSE NotifyOptedInAt
+            END
+        WHERE UserId = @userId",
+        new { userId, notify = req.NotifyUnclaimedResults });
+
+    return Results.Ok(new { ok = true });
+});
+
+// Delete the account. The user must type their email address as
+// confirmation. Cascade order is auth.AthleteResults (the FK side) then
+// auth.Users; both inside a single transaction so a partial delete can't
+// orphan rows. Signs the user out at the end.
+//
+// POST rather than DELETE because we need a request body for the email
+// confirmation, and DELETE-with-body is unreliable through some HTTP
+// middleware / proxies.
+app.MapPost("/auth/delete-account", async (DeleteAccountRequest req, HttpContext ctx) =>
+{
+    var userIdStr = ctx.User.FindFirst("userId")?.Value;
+    if (userIdStr == null) return Results.Unauthorized();
+    var userId = int.Parse(userIdStr);
+
+    using var conn = new SqlConnection(connStr);
+    var actualEmail = await conn.QueryFirstOrDefaultAsync<string>(
+        "SELECT Email FROM auth.Users WHERE UserId = @userId",
+        new { userId });
+
+    if (actualEmail == null) return Results.Unauthorized();
+
+    var typed = (req.EmailConfirmation ?? "").Trim().ToLower();
+    if (typed != actualEmail.ToLower())
+        return Results.BadRequest(new { error = "Confirmation email did not match." });
+
+    await conn.OpenAsync();
+    using var tx = conn.BeginTransaction();
+    try
+    {
+        await conn.ExecuteAsync(
+            "DELETE FROM auth.AthleteResults WHERE UserId = @userId",
+            new { userId }, tx);
+        await conn.ExecuteAsync(
+            "DELETE FROM auth.Users WHERE UserId = @userId",
+            new { userId }, tx);
+        tx.Commit();
+    }
+    catch
+    {
+        tx.Rollback();
+        throw;
+    }
+
+    await ctx.SignOutAsync("Cookies");
+    return Results.Ok(new { ok = true });
 });
 
 
@@ -1202,7 +1315,9 @@ async Task SendPasswordResetEmailAsync(string toEmail, string token)
 
 // ── Request models ───────────────────────────────────────────────────────────
 record ClaimAllRequest(List<int> Ids);
-record RegisterRequest(string Email, string Password);
+record RegisterRequest(string Email, string Password, bool NotifyUnclaimedResults = false);
 record LoginRequest(string Email, string Password);
 record ForgotPasswordRequest(string Email);
 record ResetPasswordRequest(string Token, string NewPassword);
+record UpdateSettingsRequest(bool NotifyUnclaimedResults);
+record DeleteAccountRequest(string EmailConfirmation);

@@ -195,6 +195,14 @@
             <label for="password2">Confirm password</label>
             <input type="password" id="password2" placeholder="••••••••" required autocomplete="new-password" />
 
+            <label for="notifyUnclaimedResults" style="display: flex; align-items: flex-start; gap: 8px; margin-top: 18px; font-size: 13px; color: #555; line-height: 1.4; cursor: pointer;">
+                <input type="checkbox" id="notifyUnclaimedResults" style="margin-top: 2px; flex-shrink: 0;" />
+                <span>
+                    Email me when new race results might be mine to claim.
+                    <span class="hint" style="display: block; margin-top: 2px;">Unsubscribe any time. You can change this in your account later.</span>
+                </span>
+            </label>
+
             <button type="submit" class="btn-primary" id="registerBtn">Create account</button>
         </form>
     </div>
@@ -213,6 +221,7 @@
         const email  = document.getElementById('email').value.trim();
         const pass1  = document.getElementById('password').value;
         const pass2  = document.getElementById('password2').value;
+        const notifyUnclaimedResults = document.getElementById('notifyUnclaimedResults').checked;
 
         if (pass1 !== pass2) {
             showMsg('Passwords do not match.', 'error');
@@ -226,7 +235,7 @@
             const res  = await fetch('/auth/register', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ email, password: pass1 })
+                body:    JSON.stringify({ email, password: pass1, notifyUnclaimedResults })
             });
 
             const data = await res.json();

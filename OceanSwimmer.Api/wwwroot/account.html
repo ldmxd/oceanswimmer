@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Account – OceanSwimmer</title>
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f3f4f6;
+            margin: 0;
+            min-height: 100vh;
+            padding: 1rem;
+            color: #222;
+        }
+
+        .container {
+            max-width: 520px;
+            margin: 2rem auto;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header a.logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .page-header h1 { margin: 0; font-size: 1.4rem; }
+
+        .page-header .back-link {
+            margin-left: auto;
+            font-size: 14px;
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .page-header .back-link:hover { text-decoration: underline; }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            padding: 1.6rem 1.8rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .card h2 {
+            margin: 0 0 0.4rem;
+            font-size: 1.05rem;
+            color: #222;
+        }
+
+        .card .desc {
+            font-size: 13px;
+            color: #777;
+            margin: 0 0 1.2rem;
+            line-height: 1.4;
+        }
+
+        /* ── Toggle row ───────────────────────────────────────────── */
+        .toggle-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 8px 0;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            margin-top: 4px;
+            transform: scale(1.2);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .toggle-row label {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.4;
+            cursor: pointer;
+        }
+
+        .toggle-row .sub {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .save-status {
+            font-size: 12px;
+            color: #0a8a3a;
+            margin-top: 8px;
+            min-height: 16px;
+            transition: opacity 0.3s;
+        }
+
+        .save-status.error { color: #b91c1c; }
+
+        /* ── Danger zone ──────────────────────────────────────────── */
+        .danger-card {
+            border: 1px solid #fecaca;
+            background: #fff8f8;
+        }
+
+        .danger-card h2 { color: #b91c1c; }
+
+        .btn-danger {
+            display: inline-block;
+            padding: 9px 16px;
+            background: #fff;
+            color: #b91c1c;
+            border: 1px solid #b91c1c;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-danger:hover { background: #fef2f2; }
+
+        /* ── Modal ────────────────────────────────────────────────── */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 1rem;
+        }
+
+        .modal-backdrop.show { display: flex; }
+
+        .modal {
+            background: #fff;
+            border-radius: 10px;
+            padding: 1.6rem 1.8rem;
+            max-width: 460px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+        }
+
+        .modal h3 { margin: 0 0 0.6rem; color: #b91c1c; font-size: 1.15rem; }
+
+        .modal p { font-size: 14px; color: #444; line-height: 1.5; margin: 0 0 1rem; }
+
+        .modal .what-gets-deleted {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: #7f1d1d;
+            margin: 0 0 1.2rem;
+        }
+
+        .modal .what-gets-deleted ul { margin: 6px 0 0; padding-left: 20px; }
+
+        .modal label {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        .modal input[type="email"] {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .modal input[type="email"]:focus { border-color: #b91c1c; }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 1.4rem;
+        }
+
+        .btn-cancel {
+            padding: 9px 16px;
+            background: #fff;
+            color: #444;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover { background: #f3f4f6; }
+
+        .btn-confirm-delete {
+            padding: 9px 16px;
+            background: #b91c1c;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-confirm-delete:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-confirm-delete:not(:disabled):hover { background: #991b1b; }
+
+        .modal .err {
+            font-size: 13px;
+            color: #b91c1c;
+            margin-top: 8px;
+            min-height: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="page-header">
+        <a href="/" class="logo">
+            <img src="/favicon-32x32.png" alt="" style="width:28px;height:28px;" />
+            <h1>Account</h1>
+        </a>
+        <a href="/athlete.html" class="back-link">← Back to my swims</a>
+    </div>
+
+    <!-- ── Notification preferences ─────────────────────────────── -->
+    <div class="card">
+        <h2>Notifications</h2>
+        <p class="desc">
+            We can email you when a freshly-loaded race result looks
+            like it might be yours, so you can claim it without having
+            to remember to search.
+        </p>
+
+        <div class="toggle-row">
+            <input type="checkbox" id="notifyUnclaimedResults" />
+            <label for="notifyUnclaimedResults">
+                Email me when new race results might be mine to claim.
+                <span class="sub" id="optedInAtLine"></span>
+            </label>
+        </div>
+
+        <div class="save-status" id="saveStatus"></div>
+    </div>
+
+    <!-- ── Danger zone ──────────────────────────────────────────── -->
+    <div class="card danger-card">
+        <h2>Delete account</h2>
+        <p class="desc">
+            Permanently removes your account and all the race results
+            you've claimed. This can't be undone.
+        </p>
+
+        <button type="button" class="btn-danger" id="openDeleteModal">
+            Delete my account
+        </button>
+    </div>
+
+</div>
+
+<!-- ── Delete confirmation modal ────────────────────────────────── -->
+<div class="modal-backdrop" id="deleteModal">
+    <div class="modal" role="dialog" aria-labelledby="deleteHeading">
+        <h3 id="deleteHeading">Are you sure?</h3>
+        <p>This will permanently delete:</p>
+
+        <div class="what-gets-deleted">
+            <ul>
+                <li>Your account (<span id="emailLabel"></span>)</li>
+                <li>All race results you've claimed</li>
+                <li>Your notification preferences</li>
+            </ul>
+            The race data itself stays in the public results — just
+            your link to it is removed.
+        </div>
+
+        <label for="emailConfirm">
+            To confirm, type your email address (<span id="emailLabel2"></span>):
+        </label>
+        <input type="email" id="emailConfirm" autocomplete="off"
+               placeholder="you@example.com" />
+
+        <div class="err" id="deleteErr"></div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn-cancel" id="cancelDelete">Cancel</button>
+            <button type="button" class="btn-confirm-delete" id="confirmDelete" disabled>
+                Delete forever
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentEmail = '';
+
+    async function loadSettings() {
+        const res = await fetch('/auth/settings', { credentials: 'same-origin' });
+        if (res.status === 401) {
+            location.href = '/login.html?next=/account.html';
+            return;
+        }
+        if (!res.ok) {
+            setSaveStatus("Couldn't load settings.", true);
+            return;
+        }
+        const s = await res.json();
+        currentEmail = (s.email || '').toLowerCase();
+        document.getElementById('notifyUnclaimedResults').checked = !!s.notifyUnclaimedResults;
+        document.getElementById('emailLabel').textContent  = s.email || '';
+        document.getElementById('emailLabel2').textContent = s.email || '';
+
+        if (s.notifyOptedInAt) {
+            const d = new Date(s.notifyOptedInAt);
+            document.getElementById('optedInAtLine').textContent =
+                `Originally opted in on ${d.toLocaleDateString()}.`;
+        } else {
+            document.getElementById('optedInAtLine').textContent = '';
+        }
+    }
+
+    async function saveNotificationPref() {
+        const checked = document.getElementById('notifyUnclaimedResults').checked;
+        setSaveStatus('Saving…', false);
+        try {
+            const res = await fetch('/auth/settings', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notifyUnclaimedResults: checked })
+            });
+            if (res.ok) {
+                setSaveStatus(checked ? 'Notifications on.' : 'Notifications off.', false);
+                if (checked) loadSettings(); // refresh to pick up the new opted-in date
+            } else {
+                setSaveStatus('Save failed.', true);
+            }
+        } catch {
+            setSaveStatus('Save failed.', true);
+        }
+    }
+
+    function setSaveStatus(text, isError) {
+        const el = document.getElementById('saveStatus');
+        el.textContent = text;
+        el.classList.toggle('error', !!isError);
+        if (text && !isError) {
+            setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 2500);
+        }
+    }
+
+    // ── Delete account flow ────────────────────────────────────────
+    const modal       = document.getElementById('deleteModal');
+    const emailInput  = document.getElementById('emailConfirm');
+    const confirmBtn  = document.getElementById('confirmDelete');
+    const errEl       = document.getElementById('deleteErr');
+
+    document.getElementById('openDeleteModal').addEventListener('click', () => {
+        emailInput.value = '';
+        errEl.textContent = '';
+        confirmBtn.disabled = true;
+        modal.classList.add('show');
+        emailInput.focus();
+    });
+
+    document.getElementById('cancelDelete').addEventListener('click', () => {
+        modal.classList.remove('show');
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('show');
+    });
+
+    emailInput.addEventListener('input', () => {
+        const typed = (emailInput.value || '').trim().toLowerCase();
+        confirmBtn.disabled = !currentEmail || typed !== currentEmail;
+        errEl.textContent = '';
+    });
+
+    confirmBtn.addEventListener('click', async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Deleting…';
+        try {
+            const res = await fetch('/auth/delete-account', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emailConfirmation: emailInput.value.trim() })
+            });
+            if (res.ok) {
+                location.href = '/?deleted=1';
+            } else {
+                const data = await res.json().catch(() => ({}));
+                errEl.textContent = data.error || 'Delete failed.';
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Delete forever';
+            }
+        } catch {
+            errEl.textContent = 'Delete failed.';
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Delete forever';
+        }
+    });
+
+    // ── Boot ───────────────────────────────────────────────────────
+    document.getElementById('notifyUnclaimedResults')
+            .addEventListener('change', saveNotificationPref);
+
+    loadSettings();
+</script>
+
+</body>
+</html>

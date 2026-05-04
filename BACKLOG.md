@@ -48,12 +48,133 @@ result against their profile.
 - **Suppression list**: bounces, complaints, hard fails — never
   retry. Probably keep this in the same table as unsubscribes.
 
-### Trigger / scheduling
+### Trigger logic — ongoing notification job
 
-Prefer a scheduled OceanSwimmer-side job that periodically scans
-for new race rows and unmatched-but-claimable results, rather than
-having the scraper push events. Keeps FarmResults deterministic
-and unaffected by email-system outages.
+Scheduled OceanSwimmer-side job, not a scraper-push, so the email
+system can be down without affecting the scraper. Default cadence
+nightly: a 9pm Sunday run catches that day's races; daily
+afterwards mops up mid-week loads. An in-process
+`IHostedService` / `BackgroundService` is enough for a single-
+server deployment; the alternative is an external cron hitting an
+admin-only endpoint, which gives you a manual trigger for testing
+at the cost of more moving parts.
+
+For each user where `NotifyUnclaimedResults = 1`:
+
+```sql
+SELECT o.oceanswimsid, r.RaceDescription, r.RaceDate,
+       o.RaceTime, o.OverallPosition
+FROM dbo.OceanSwims o
+JOIN dbo.Race r        ON r.raceid = o.raceid
+WHERE o.Forename = @forename
+  AND o.Surname  = @surname
+  AND NOT EXISTS (
+      SELECT 1 FROM auth.AthleteResults ar
+      WHERE ar.UserId = @userId AND ar.OceanSwimsId = o.oceanswimsid)
+  AND o.datecreated > COALESCE(@lastNotifiedAt, @optedInAt)
+ORDER BY r.RaceDate DESC;
+```
+
+If 0 candidates: skip the user. If 1+: one digest email listing
+all of them, then `UPDATE auth.Users SET NotifyLastSentAt =
+GETUTCDATE()`. Cap at one email per user per 24h.
+
+The `COALESCE(@lastNotifiedAt, @optedInAt)` lower bound means a
+brand-new opt-in only hears about results loaded *after* they
+consented — no historical-backlog dump on the first email. If we
+ever decide we DO want backfill on first opt-in, swap the COALESCE
+for just `@lastNotifiedAt` and treat NULL as beginning of time.
+
+### Schema — auth.Users
+
+Already in place (migrations 003, 004):
+
+- `NotifyUnclaimedResults  bit       NOT NULL DEFAULT 0`
+- `NotifyOptedInAt         datetime2 NULL`
+- `NotifyLastSentAt        datetime2 NULL`
+
+Still to add when the launch email is built (migration 005+):
+
+- `LaunchEmailSentAt   datetime2     NULL` — when we sent the
+   one-time launch email; non-NULL means we've already had our one
+   shot, never re-send.
+- `LaunchOptInToken    nvarchar(100) NULL` — random token in the
+   launch email link, NULL'd out on click.
+
+### Email content
+
+#### A. Launch email — one-time, to existing members
+
+Sent once per existing member when the feature ships. They click
+the link to opt in. If they don't click, they're never emailed
+about this again.
+
+**Subject**: `Get a heads-up when your race results land?`
+
+**Plain text**:
+
+```
+Hi {Forename or "there"},
+
+When we load fresh race results into OceanSwimmer, we can spot
+which ones look like they might be yours and send you a quick
+"this looks like you" email so you don't have to keep checking
+back.
+
+It'd typically be a few emails a year — after big swim weekends.
+
+Want this on?
+
+  Yes, email me about possible matches:
+  {baseUrl}/auth/launch-opt-in?token={token}
+
+If you'd rather not, just ignore this email. We won't ask again,
+and we won't email you about this regardless.
+
+You can change your mind any time at {baseUrl}/account.html.
+
+— The OceanSwimmer team
+```
+
+**HTML**: same copy, render the link as the standard blue button
+(`background:#0066cc;color:#fff;padding:12px 24px;border-
+radius:6px`) used by the existing verification and password-reset
+emails — see `SendVerificationEmailAsync` in `Program.cs` for the
+exact pattern.
+
+**Why no unsubscribe footer**: this email is *asking for* consent,
+so the recipient hasn't yet opted into a stream — the "ignore this
+and we won't ask again" line is the unsubscribe equivalent.
+
+**Endpoint behaviour for `/auth/launch-opt-in?token=...`**:
+
+- Look up the user by `LaunchOptInToken`. Unknown token → friendly
+  "this link has already been used or has expired" page.
+- Found: `UPDATE auth.Users SET NotifyUnclaimedResults = 1,
+  NotifyOptedInAt = COALESCE(NotifyOptedInAt, GETUTCDATE()),
+  LaunchOptInToken = NULL WHERE UserId = @userId`. Show a "Thanks
+  — we'll email you when we spot a likely match" confirmation
+  page with a link to `/account.html`.
+- Token is NULL'd on click, so the link is one-shot.
+
+#### B. Notification digest email — ongoing, to opted-in members
+
+Triggered by the scheduled job above. Sent at most once per 24h
+per member. Lists all unclaimed candidate results loaded since the
+member's last notification.
+
+Not yet drafted in detail. Key requirements when we get there:
+
+- Personal greeting using `SwimmerForename` if available.
+- Frame as "we think these might be yours" rather than asserting
+  the match — the forename+surname heuristic has false positives
+  on common names.
+- Each candidate result shows race name, date, time, position, and
+  a one-click claim link (plus a "not me" path so a wrong match
+  trains the suppression).
+- Footer: "manage notifications" link to `/account.html`. No per-
+  email unsubscribe token needed — they're an authenticated member
+  managing a preference, not a marketing-list recipient.
 
 ### Origin
 
