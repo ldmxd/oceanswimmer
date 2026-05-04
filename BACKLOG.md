@@ -15,11 +15,25 @@ result against their profile.
   collides on common names. Tighten with previously-claimed races
   at the same event (recurring swimmers), age bracket, or
   last-seen race number where available.
-- **Unsubscribe**: every email must include a working unsubscribe
-  link. Use a per-message token, not the user id in the URL.
-  Honour unsubscribes permanently (a member who's opted out should
-  not be re-notified even if they later have new claimable
-  results).
+- **Opt-in, not opt-out**: add a checkbox to the signup flow
+  ("notify me by email when a result might be mine to claim").
+  Default to off — members must tick it. Store the preference and
+  the signup-form opt-in timestamp on the member record (useful
+  evidence if a complaint ever lands).
+- **Existing members** (those who signed up before this feature
+  ships) get a one-time email when the feature launches: "this is
+  launching, do you want notifications?" with an opt-in link. If
+  they don't click the link, never email them about this again.
+  This single touch is permitted under existing-relationship
+  precedent in the Spam Act; getting it right matters because we
+  only get one shot. Track which existing members were emailed
+  (date sent) and which clicked-to-opt-in.
+- **Unsubscribe / preferences link**: every notification email must
+  include a working unsubscribe (or "manage notifications") link.
+  Use a per-message token, not the user id in the URL. Honour
+  unsubscribes permanently — a member who's opted out should not
+  be re-notified even if they later have new claimable results,
+  unless they re-opt-in via the preferences page.
 - **Throttling / digest**: don't send one email per race. If a
   member has multiple unclaimed results across recent scrapes,
   fold them into a single digest. Cap at e.g. one email per
