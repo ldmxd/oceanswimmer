@@ -1,6 +1,7 @@
 using Dapper;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Data.SqlClient;
 using OceanSwimmer.Api.Helpers;
 using SendGrid;
@@ -71,6 +72,8 @@ builder.Services.AddAuthentication(options =>
 
         // Attach userId to the cookie so endpoints can read it cheaply
         ctx.Identity!.AddClaim(new Claim("userId", userId.ToString()!));
+
+        await LogLoginAsync(userId, email, "Google", true, null, ctx.HttpContext);
     };
 })
 .AddFacebook("Facebook", options =>
@@ -110,6 +113,8 @@ builder.Services.AddAuthentication(options =>
         }
 
         ctx.Identity!.AddClaim(new Claim("userId", userId.ToString()!));
+
+        await LogLoginAsync(userId, email, "Facebook", true, null, ctx.HttpContext);
     };
 });
 
@@ -298,6 +303,8 @@ app.MapGet("/auth/verify-email", async (string token, HttpContext ctx) =>
     var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Cookies"));
     await ctx.SignInAsync("Cookies", principal);
 
+    await LogLoginAsync(userId, (string)user.Email, "EmailVerification", true, null, ctx);
+
     return Results.Redirect("/?verified=1");
 });
 
@@ -305,7 +312,10 @@ app.MapGet("/auth/verify-email", async (string token, HttpContext ctx) =>
 app.MapPost("/auth/login-password", async (LoginRequest req, HttpContext ctx) =>
 {
     if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+    {
+        await LogLoginAsync(null, req.Email, "Local", false, "missing-credentials", ctx);
         return Results.BadRequest(new { error = "Email and password are required." });
+    }
 
     var email = req.Email.Trim().ToLower();
 
@@ -319,10 +329,22 @@ app.MapPost("/auth/login-password", async (LoginRequest req, HttpContext ctx) =>
 
     // Deliberate vague error — don't reveal whether email exists
     if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, (string)(user.PasswordHash ?? "")))
+    {
+        await LogLoginAsync(
+            user == null ? (int?)null : (int)user.UserId,
+            email,
+            "Local",
+            false,
+            user == null ? "no-such-user" : "invalid-password",
+            ctx);
         return Results.BadRequest(new { error = "Invalid email or password." });
+    }
 
     if (!(bool)user.EmailVerified)
+    {
+        await LogLoginAsync((int)user.UserId, email, "Local", false, "unverified-email", ctx);
         return Results.BadRequest(new { error = "Please verify your email address before signing in." });
+    }
 
     int userId = (int)user.UserId;
 
@@ -333,6 +355,8 @@ app.MapPost("/auth/login-password", async (LoginRequest req, HttpContext ctx) =>
     };
     var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Cookies"));
     await ctx.SignInAsync("Cookies", principal);
+
+    await LogLoginAsync(userId, email, "Local", true, null, ctx);
 
     return Results.Ok(new { message = "Signed in." });
 });
@@ -865,6 +889,7 @@ app.MapGet("/sitemap.xml", async () =>
 
 
 app.MapGet("/swims/search", async (
+    HttpContext httpCtx,
     string? forename,
     string? surname,
     string? race,
@@ -1026,6 +1051,12 @@ app.MapGet("/swims/search", async (
         });
     }
 
+    await LogSearchAsync(
+        "swims", httpCtx,
+        forename: forename, surname: surname, race: race, raceId: raceId,
+        category: category, gender: gender, page: page, pageSize: pageSize,
+        resultCount: results.Count);
+
     return Results.Ok(new
     {
         page,
@@ -1037,7 +1068,7 @@ app.MapGet("/swims/search", async (
 
 // Secondary search — phonetically similar surnames (for logged-in swimmer checking own name)
 // e.g. Hanby → also returns Hamby rows
-app.MapGet("/swims/search-similar", async (string forename, string surname) =>
+app.MapGet("/swims/search-similar", async (HttpContext httpCtx, string forename, string surname) =>
 {
     if (string.IsNullOrWhiteSpace(forename) || string.IsNullOrWhiteSpace(surname))
         return Results.BadRequest("forename and surname required");
@@ -1129,6 +1160,11 @@ app.MapGet("/swims/search-similar", async (string forename, string surname) =>
             _nearMatch         = true
         });
     }
+
+    await LogSearchAsync(
+        "swims-similar", httpCtx,
+        forename: forename, surname: surname,
+        resultCount: results.Count);
 
     return Results.Ok(new { count = results.Count, results });
 });
@@ -1235,6 +1271,90 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
 });
 
 app.Run();
+
+// ── Login log helper ─────────────────────────────────────────────────────────
+// Writes one row to auth.LoginLog per login attempt. Wrapped in try/catch so
+// a logging failure (e.g. transient DB blip) never breaks the actual sign-in.
+async Task LogLoginAsync(
+    int? userId,
+    string? email,
+    string authProvider,
+    bool success,
+    string? failureReason,
+    HttpContext? httpCtx)
+{
+    try
+    {
+        var ip = httpCtx?.Connection.RemoteIpAddress?.ToString();
+        var ua = httpCtx?.Request.Headers["User-Agent"].ToString();
+        if (!string.IsNullOrEmpty(ua) && ua.Length > 500)
+            ua = ua.Substring(0, 500);
+
+        using var conn = new SqlConnection(connStr);
+        await conn.ExecuteAsync(@"
+            INSERT INTO auth.LoginLog
+                (UserId, Email, AuthProvider, Success, FailureReason, IpAddress, UserAgent)
+            VALUES
+                (@userId, @email, @authProvider, @success, @failureReason, @ip, @ua)",
+            new { userId, email, authProvider, success, failureReason, ip, ua });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[LoginLog] Failed to record login: {ex.Message}");
+    }
+}
+
+// ── Search log helper ────────────────────────────────────────────────────────
+// Writes one row to dbo.SearchLog per search call. UserId comes from the
+// "userId" claim if signed in, otherwise null. Wrapped in try/catch — a
+// logging blip should never break a search.
+async Task LogSearchAsync(
+    string searchType,
+    HttpContext httpCtx,
+    string? forename = null,
+    string? surname = null,
+    string? race = null,
+    int? raceId = null,
+    string? category = null,
+    string? gender = null,
+    int? page = null,
+    int? pageSize = null,
+    int? resultCount = null)
+{
+    try
+    {
+        int? userId = null;
+        var userIdStr = httpCtx?.User?.FindFirst("userId")?.Value;
+        if (int.TryParse(userIdStr, out var parsedUserId))
+            userId = parsedUserId;
+
+        var ip = httpCtx?.Connection.RemoteIpAddress?.ToString();
+        var ua = httpCtx?.Request.Headers["User-Agent"].ToString();
+        if (!string.IsNullOrEmpty(ua) && ua.Length > 500)
+            ua = ua.Substring(0, 500);
+
+        var url = httpCtx?.Request.GetDisplayUrl();
+        if (!string.IsNullOrEmpty(url) && url.Length > 1000)
+            url = url.Substring(0, 1000);
+
+        using var conn = new SqlConnection(connStr);
+        await conn.ExecuteAsync(@"
+            INSERT INTO dbo.SearchLog
+                (UserId, SearchType, Forename, Surname, Race, RaceId,
+                 Category, Gender, Page, PageSize, ResultCount, IpAddress, UserAgent, Url)
+            VALUES
+                (@userId, @searchType, @forename, @surname, @race, @raceId,
+                 @category, @gender, @page, @pageSize, @resultCount, @ip, @ua, @url)",
+            new {
+                userId, searchType, forename, surname, race, raceId,
+                category, gender, page, pageSize, resultCount, ip, ua, url
+            });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[SearchLog] Failed to record search: {ex.Message}");
+    }
+}
 
 // ── Email helpers ────────────────────────────────────────────────────────────
 async Task SendVerificationEmailAsync(string toEmail, string token)
