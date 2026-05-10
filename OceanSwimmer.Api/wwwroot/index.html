@@ -12,11 +12,20 @@
 
     <meta charset="UTF-8" />
     <title>OceanSwimmer Results Search</title>
+    <meta name="description" content="Search ocean swim race results across Australia. Claim your swims, track your progress, see how you stack up." />
 
-    <link rel="icon" href="/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Open Graph -->
+    <meta property="og:title" content="OceanSwimmer Results Search" />
+    <meta property="og:description" content="Search ocean swim race results across Australia. Claim your swims, track your progress." />
+    <meta property="og:image" content="https://oceanswimmer.com.au/images/og-image.png" />
+    <meta property="og:url" content="https://oceanswimmer.com.au/" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/images/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
 
     <!-- DataTables (sorting + export) -->
     <link rel="stylesheet"
@@ -299,11 +308,17 @@
 </head>
 <body>
 
-    <h1 style="display:flex; align-items:center;">
-        <a href="/" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit;">
-            <img src="/favicon-32x32.png" alt="Home" style="width:28px; height:28px;" />
-            <span>Ocean Swimmer Results</span>
+    <!-- Banner -->
+    <div style="margin-bottom: 1rem;">
+        <a href="/" style="display:inline-block;">
+            <img src="/images/oceanswimmer-banner.png"
+                 alt="Ocean Swimmer"
+                 style="max-width: 500px; width: 100%; height: auto; display: block;" />
         </a>
+    </div>
+
+    <h1 style="display:flex; align-items:center; margin-top: 0;">
+        <span>Race Results</span>
         <!-- Auth bar sits on the right of the header row -->
         <div id="authBar" style="margin-left:auto;">
             <!-- populated by initAuth() -->
@@ -573,7 +588,7 @@
             if (currentUser) {
                 const name = currentUser.name || currentUser.email || 'Swimmer';
                 bar.innerHTML = `
-                    <span class="auth-name">👋 ${name}</span>
+                    <span class="auth-name"><img src="/images/oceanswimmer-logo.png" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:8px;" />${name}</span>
                     <button class="btn-panel-toggle" id="mySwimsPanelBtn"      onclick="toggleMySwims()">★ My Results</button>
                     <button class="btn-panel-toggle" id="swimsToClaimBtn" onclick="toggleSwimsToClaim()">☆ Results to Claim</button>
                     <a href="/athlete.html" style="font-size:13px; color:#666; white-space:nowrap;">Full Profile</a>
