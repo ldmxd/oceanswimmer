@@ -912,7 +912,7 @@ app.MapGet("/swims/search", async (
     if (isCrawler)
         pageSize = Math.Clamp(pageSize, 1, 250);
     else if (raceId != null)
-        pageSize = Math.Clamp(pageSize, 1, 100_000);  // big-race ready
+        pageSize = Math.Clamp(pageSize, 1, 10_000);
     else
         pageSize = Math.Clamp(pageSize, 1, 250);
 
