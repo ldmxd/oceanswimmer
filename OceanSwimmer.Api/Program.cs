@@ -900,8 +900,19 @@ app.MapGet("/swims/search", async (
     int pageSize = 250) =>
 {
     page = Math.Max(page, 1);
-    if (raceId != null)
-        pageSize = Math.Clamp(pageSize, 1, 10_000);
+
+    // Detect crawlers — they don't need full result sets, and unbounded
+    // pageSize chews bandwidth (Googlebot was pulling 2K+ rows per race).
+    string ua = httpCtx.Request.Headers.UserAgent.ToString();
+    bool isCrawler = !string.IsNullOrEmpty(ua) && (
+        ua.Contains("bot",     StringComparison.OrdinalIgnoreCase) ||
+        ua.Contains("crawler", StringComparison.OrdinalIgnoreCase) ||
+        ua.Contains("spider",  StringComparison.OrdinalIgnoreCase));
+
+    if (isCrawler)
+        pageSize = Math.Clamp(pageSize, 1, 250);
+    else if (raceId != null)
+        pageSize = Math.Clamp(pageSize, 1, 100_000);  // big-race ready
     else
         pageSize = Math.Clamp(pageSize, 1, 250);
 
