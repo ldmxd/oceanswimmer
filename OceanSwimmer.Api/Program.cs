@@ -1274,9 +1274,15 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
     var countStr = race.OverallCompetitors != null ? $"{race.OverallCompetitors} finishers. " : "";
     var description = $"Results for {raceName}{(dateStr != "" ? " – " + dateStr : "")}. {countStr}View times, positions and category results on OceanSwimmer.";
 
+    // Canonical URL for this race — strips any ?category=, ?gender=, etc.
+    // so all filter variants consolidate to the same SEO target.
+    var canonicalUrl = $"https://oceanswimmer.com.au/results/{expectedSlug}-{raceId}";
+
     html = html.Replace(
         "<title>OceanSwimmer Results Search</title>",
-        $"<title>{System.Net.WebUtility.HtmlEncode(raceName)} Results | OceanSwimmer</title>\n    <meta name=\"description\" content=\"{System.Net.WebUtility.HtmlEncode(description)}\" />");
+        $"<title>{System.Net.WebUtility.HtmlEncode(raceName)} Results | OceanSwimmer</title>\n" +
+        $"    <meta name=\"description\" content=\"{System.Net.WebUtility.HtmlEncode(description)}\" />\n" +
+        $"    <link rel=\"canonical\" href=\"{canonicalUrl}\" />");
 
     return Results.Content(html, "text/html");
 });
