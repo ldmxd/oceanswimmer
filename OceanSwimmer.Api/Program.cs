@@ -1279,9 +1279,10 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
     var canonicalUrl = $"https://oceanswimmer.com.au/results/{expectedSlug}-{raceId}";
 
     // Strip the static homepage canonical so we don't end up with two tags.
+    // (Use [^>]* not [^/]* so we don't choke on slashes in the href URL.)
     html = System.Text.RegularExpressions.Regex.Replace(
         html,
-        @"<link rel=""canonical""[^/]*/>\s*",
+        @"<link\s+rel=""canonical""[^>]*>\s*",
         "");
 
     html = html.Replace(
