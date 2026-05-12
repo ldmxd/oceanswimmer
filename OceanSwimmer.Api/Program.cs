@@ -130,6 +130,38 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 
 app.UseHttpsRedirection();
 
+// ── Legacy URL redirects ────────────────────────────────────────────────
+// Old race URLs like /?raceId=404 → 301 to /results/<slug>-<id>.
+// Fixes the "Duplicate without user-selected canonical" issue in
+// Search Console where Google indexed both URL formats for the same race.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/" &&
+        context.Request.Query.TryGetValue("raceId", out var rid) &&
+        int.TryParse(rid, out var raceId))
+    {
+        try
+        {
+            using var conn = new SqlConnection(connStr);
+            var raceName = await conn.QueryFirstOrDefaultAsync<string?>(
+                "SELECT TOP 1 RaceName FROM dbo.vw_OceanSwims_Search WHERE raceid = @raceId",
+                new { raceId });
+
+            if (!string.IsNullOrEmpty(raceName))
+            {
+                var slug = SlugHelper.GenerateSlug(raceName);
+                context.Response.Redirect($"/results/{slug}-{raceId}", permanent: true);
+                return;
+            }
+        }
+        catch
+        {
+            // If lookup fails, fall through and serve index.html as normal.
+        }
+    }
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
