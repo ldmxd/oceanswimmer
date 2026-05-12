@@ -1278,6 +1278,12 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
     // so all filter variants consolidate to the same SEO target.
     var canonicalUrl = $"https://oceanswimmer.com.au/results/{expectedSlug}-{raceId}";
 
+    // Strip the static homepage canonical so we don't end up with two tags.
+    html = System.Text.RegularExpressions.Regex.Replace(
+        html,
+        @"<link rel=""canonical""[^/]*/>\s*",
+        "");
+
     html = html.Replace(
         "<title>OceanSwimmer Results Search</title>",
         $"<title>{System.Net.WebUtility.HtmlEncode(raceName)} Results | OceanSwimmer</title>\n" +
