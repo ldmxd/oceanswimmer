@@ -942,11 +942,11 @@ app.MapGet("/swims/search", async (
         ua.Contains("spider",  StringComparison.OrdinalIgnoreCase));
 
     if (isCrawler)
-        pageSize = Math.Clamp(pageSize, 1, 250);
+        pageSize = Math.Clamp(pageSize, 1, 250);        // bots — keep tight
     else if (raceId != null)
-        pageSize = Math.Clamp(pageSize, 1, 10_000);
+        pageSize = Math.Clamp(pageSize, 1, 10_000);     // race page — full results
     else
-        pageSize = Math.Clamp(pageSize, 1, 250);
+        pageSize = Math.Clamp(pageSize, 1, 500);        // name search — headroom for common surnames
 
     int offset = (page - 1) * pageSize;
 
