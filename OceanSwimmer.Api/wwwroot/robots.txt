@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /auth/
+Disallow: /athlete/
+Disallow: /swims/
+Disallow: /api/
+Disallow: /login/
+
+Sitemap: https://oceanswimmer.com.au/sitemap.xml
