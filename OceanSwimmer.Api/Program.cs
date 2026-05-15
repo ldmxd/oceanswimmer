@@ -1272,6 +1272,13 @@ app.MapGet("/races", async (string? q) =>
 
 app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
 {
+    // Googlebot's URL extractor sometimes scrapes literal JS template-literal
+    // strings (e.g. "/results/${generateSlug(r.RaceName)}-${r.raceid}") out of
+    // <script> bodies before JS runs, and then tries to crawl them. Return 410
+    // Gone so those URLs get de-indexed quickly instead of lingering as 404s.
+    if (slug.IndexOfAny(new[] { '$', '{', '}' }) >= 0)
+        return Results.StatusCode(410); // Gone
+
     var parts = slug.Split('-');
     if (!int.TryParse(parts.Last(), out var raceId))
         return Results.NotFound();
