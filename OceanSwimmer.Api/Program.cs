@@ -882,7 +882,7 @@ app.MapGet("/api/race-count", async () =>
     using var conn = new SqlConnection(connStr);
 
     var count = await conn.QuerySingleAsync<int>(
-        "SELECT COUNT(DISTINCT RaceId) FROM dbo.OceanSwims"
+        "SELECT COUNT(DISTINCT raceid) FROM dbo.vw_OceanSwims_Search"
     );
 
     return Results.Ok(count);
