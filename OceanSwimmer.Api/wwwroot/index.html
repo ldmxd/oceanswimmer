@@ -307,6 +307,85 @@
             border-color: #f5a623;
             color: #f5a623;
         }
+
+        /* ── Tab nav ─────────────────────────────────────────────── */
+        .tab-nav {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab-btn {
+            padding: 8px 22px;
+            border: none;
+            background: none;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .tab-btn:hover { color: #333; }
+
+        .tab-btn.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+        }
+
+        /* ── Races tab layout ────────────────────────────────────── */
+        #races-search-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        #raceSearch {
+            padding: 0.4rem 0.6rem;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 280px;
+        }
+
+        #races-count {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .race-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .race-table th {
+            text-align: left;
+            padding: 7px 10px;
+            background: #f9fafb;
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-bottom: 2px solid #e5e7eb;
+            white-space: nowrap;
+        }
+
+        .race-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+
+        .race-table tr:hover td { background: #fafafa; }
+        .race-table tr:last-child td { border-bottom: none; }
+
+        .race-table td.num,
+        .race-table th.num { text-align: right; }
     </style>
 </head>
 <body>
@@ -327,6 +406,15 @@
             <!-- populated by initAuth() -->
         </div>
     </h1>
+
+    <!-- Tab nav -->
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="results" onclick="showTab('results')">Race Results</button>
+        <button class="tab-btn"        data-tab="races"   onclick="showTab('races')">All Races</button>
+    </nav>
+
+    <!-- ══ Results tab ══════════════════════════════════════════════ -->
+    <div id="tab-results">
 
     <!-- Results to Claim panel (populated by JS, only shown when logged in) -->
     <div id="swimsToClaimPanelWrap" style="display:none;"></div>
@@ -377,15 +465,19 @@
         <a href="/feedback.html">Send feedback</a>
     </p>
 
-    <div style="margin-bottom: 1em;">
-        <button onclick="loadRaces()">List all races</button>
-        <input id="raceSearch"
-               placeholder="Search races…"
-               onkeyup="filterRaces()"
-               style="margin-left: 10px;" />
-    </div>
+    </div><!-- /#tab-results -->
 
-    <div id="raceList"></div>
+    <!-- ══ Races tab ════════════════════════════════════════════════ -->
+    <div id="tab-races" style="display:none;">
+        <div id="races-search-bar">
+            <input id="raceSearch"
+                   placeholder="Search races…"
+                   oninput="filterRaces()"
+                   autocomplete="off" />
+            <span id="races-count"></span>
+        </div>
+        <div id="raceList"></div>
+    </div><!-- /#tab-races -->
 
     <script>
         function generateSlug(input) {
@@ -429,7 +521,9 @@
         async function loadRacesAndDefault() {
             // Remove the server-rendered block — JS DataTable takes over from here
             document.getElementById('ssr-latest-race')?.remove();
-            await loadRaces();
+            // Fetch races (needed for auto-select); rendering is deferred until Races tab opens
+            const res = await fetch("/races");
+            allRaces  = await res.json();
             if (allRaces.length > 0) {
                 const top  = allRaces[0];
                 const slug = generateSlug(top.raceName);
@@ -768,42 +862,83 @@
         // ── Data fetching ────────────────────────────────────────────
 
         async function loadRaces() {
-            const res  = await fetch("/races");
-            allRaces   = await res.json();
-            renderRaceList(allRaces);
+            if (allRaces.length === 0) {
+                const res = await fetch("/races");
+                allRaces  = await res.json();
+            }
+            // Only render if the Races tab is currently visible
+            if (document.getElementById("tab-races").style.display !== "none") {
+                renderRaceList(allRaces);
+            }
         }
 
         function filterRaces() {
             const q = document.getElementById("raceSearch").value.toLowerCase();
-            renderRaceList(allRaces.filter(r =>
+            const filtered = allRaces.filter(r =>
                 r.raceName && r.raceName.toLowerCase().includes(q)
-            ));
+            );
+            renderRaceList(filtered);
         }
 
         function renderRaceList(races) {
             const container = document.getElementById("raceList");
-            container.innerHTML = "";
+            const countEl   = document.getElementById("races-count");
 
-            races.forEach(r => {
-                const div = document.createElement("div");
-                const a   = document.createElement("a");
+            if (countEl) {
+                countEl.textContent = races.length === allRaces.length
+                    ? `${races.length} races`
+                    : `${races.length} of ${allRaces.length} races`;
+            }
+
+            if (!races.length) {
+                container.innerHTML = `<p style="color:#999;font-size:14px;">No races match your search.</p>`;
+                return;
+            }
+
+            const rows = races.map(r => {
                 const slug = generateSlug(r.raceName);
-                a.href        = `/results/${slug}-${r.raceId}`;
-                a.textContent = r.raceName;
-                a.dataset.raceId   = r.raceId;
-                a.dataset.raceName = r.raceName;
-                a.onclick = (e) => {
-                    e.preventDefault();
-                    history.pushState({}, "", a.href);
-                    searchByRace(a.dataset.raceId, a.dataset.raceName);
-                };
-                div.appendChild(a);
-                div.appendChild(document.createTextNode(
-                    ` – ${r.raceDate ?? ""} · ${r.distance ?? "?"} km · ${r.resultCount} results`
-                ));
-                container.appendChild(div);
-            });
+                const href = `/results/${slug}-${r.raceId}`;
+                const date = r.raceDate
+                    ? new Date(r.raceDate).toLocaleDateString("en-GB",
+                        { day: "2-digit", month: "short", year: "numeric" })
+                    : "–";
+                return `<tr>
+                    <td style="white-space:nowrap">${date}</td>
+                    <td><a href="${href}"
+                           class="race-tab-link"
+                           data-raceid="${r.raceId}"
+                           data-racename="${r.raceName.replace(/"/g, '&quot;')}"
+                           data-href="${href}">${r.raceName}</a></td>
+                    <td class="num">${r.distance ?? "?"} km</td>
+                    <td class="num">${r.resultCount}</td>
+                </tr>`;
+            }).join("");
+
+            container.innerHTML = `
+                <table class="race-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Race</th>
+                            <th class="num">Distance</th>
+                            <th class="num">Results</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
         }
+
+        // Click handler for races in the Races tab — switches to Results tab
+        $(document).on("click", ".race-tab-link", function (e) {
+            e.preventDefault();
+            const raceId   = this.dataset.raceid;
+            const raceName = this.dataset.racename;
+            const href     = this.dataset.href;
+            history.pushState({}, "", href);
+            showTab("results");
+            searchByRace(raceId, raceName);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
 
         function searchByRaceAndCategory(raceId, category, gender) {
             const params = new URLSearchParams();
@@ -1293,6 +1428,22 @@
                 $(this).prop('disabled', false);
             }
         });
+
+
+        // ── Tab switching ─────────────────────────────────────────────
+
+        function showTab(name) {
+            document.getElementById("tab-results").style.display = name === "results" ? "" : "none";
+            document.getElementById("tab-races").style.display   = name === "races"   ? "" : "none";
+            document.querySelectorAll(".tab-btn").forEach(b => {
+                b.classList.toggle("active", b.dataset.tab === name);
+            });
+            // Lazy-render races if switching to the tab for the first time
+            if (name === "races" && allRaces.length > 0 &&
+                !document.querySelector(".race-table")) {
+                renderRaceList(allRaces);
+            }
+        }
 
 
         // ── Bootstrap ────────────────────────────────────────────────
