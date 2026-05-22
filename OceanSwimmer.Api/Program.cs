@@ -120,6 +120,11 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddHostedService(sp =>
+    new LeaderboardRefreshService(
+        connStr!,
+        sp.GetRequiredService<ILogger<LeaderboardRefreshService>>()));
+
 var app = builder.Build();
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
@@ -1213,6 +1218,71 @@ app.MapGet("/swims/search-similar", async (HttpContext httpCtx, string forename,
     return Results.Ok(new { count = results.Count, results });
 });
 
+// ---------------------------------------------------------------------------
+// LEADERBOARD ENDPOINTS
+// ---------------------------------------------------------------------------
+
+app.MapGet("/leaderboard/alltime", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.QueryAsync(@"
+        SELECT TOP 50
+            Forename,
+            Surname,
+            FullName,
+            TotalSwims,
+            TotalDistanceKm,
+            FirstSwimDate,
+            LastSwimDate
+        FROM dbo.LeaderboardAllTime
+        ORDER BY TotalSwims DESC");
+
+    return Results.Ok(rows.Select(r => new
+    {
+        forename        = (string?)r.Forename,
+        surname         = (string?)r.Surname,
+        fullName        = (string?)r.FullName,
+        totalSwims      = (int)r.TotalSwims,
+        totalDistanceKm = (decimal?)r.TotalDistanceKm,
+        firstSwimDate   = (DateTime?)r.FirstSwimDate,
+        lastSwimDate    = (DateTime?)r.LastSwimDate
+    }));
+});
+
+app.MapGet("/leaderboard/seasons", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var seasons = await conn.QueryAsync<int>(
+        "SELECT DISTINCT Season FROM dbo.LeaderboardSeasonal ORDER BY Season DESC");
+    return Results.Ok(seasons);
+});
+
+app.MapGet("/leaderboard/seasonal", async (int? season) =>
+{
+    var targetSeason = season ?? DateTime.Now.Year;
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.QueryAsync(@"
+        SELECT TOP 50
+            Forename,
+            Surname,
+            FullName,
+            TotalSwims,
+            TotalDistanceKm
+        FROM dbo.LeaderboardSeasonal
+        WHERE Season = @targetSeason
+        ORDER BY TotalSwims DESC",
+        new { targetSeason });
+
+    return Results.Ok(rows.Select(r => new
+    {
+        forename        = (string?)r.Forename,
+        surname         = (string?)r.Surname,
+        fullName        = (string?)r.FullName,
+        totalSwims      = (int)r.TotalSwims,
+        totalDistanceKm = (decimal?)r.TotalDistanceKm
+    }));
+});
+
 app.MapGet("/races", async (string? q) =>
 {
     var results = new List<object>();
@@ -1619,3 +1689,73 @@ record ForgotPasswordRequest(string Email);
 record ResetPasswordRequest(string Token, string NewPassword);
 record UpdateSettingsRequest(bool NotifyUnclaimedResults);
 record DeleteAccountRequest(string EmailConfirmation);
+
+
+// ── Leaderboard refresh ──────────────────────────────────────────────────────
+// Runs sp_PopulateLeaderboards every Sunday at 14:00 UTC (≈ midnight AEST).
+public class LeaderboardRefreshService : BackgroundService
+{
+    private readonly string _connStr;
+    private readonly ILogger<LeaderboardRefreshService> _logger;
+
+    // Target time: Sunday 14:00 UTC ≈ midnight Australian Eastern time
+    private static readonly TimeOnly TargetTime = new(14, 0, 0);
+
+    public LeaderboardRefreshService(string connStr, ILogger<LeaderboardRefreshService> logger)
+    {
+        _connStr = connStr;
+        _logger  = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            var delay = DelayUntilNextSundayNight();
+            _logger.LogInformation(
+                "[Leaderboard] Next refresh in {Hours:F1} hours (Sunday 14:00 UTC)",
+                delay.TotalHours);
+
+            await Task.Delay(delay, stoppingToken);
+
+            if (stoppingToken.IsCancellationRequested) break;
+
+            await RefreshAsync();
+        }
+    }
+
+    private static TimeSpan DelayUntilNextSundayNight()
+    {
+        var now = DateTime.UtcNow;
+
+        // Days until Sunday (0 = today is Sunday)
+        int daysUntil = ((int)DayOfWeek.Sunday - (int)now.DayOfWeek + 7) % 7;
+
+        // If today is Sunday but we're already past 14:00 UTC, wait until next Sunday
+        if (daysUntil == 0 && TimeOnly.FromDateTime(now) >= TargetTime)
+            daysUntil = 7;
+
+        var next = now.Date.AddDays(daysUntil)
+                         .AddHours(TargetTime.Hour)
+                         .AddMinutes(TargetTime.Minute);
+
+        return next - now;
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _logger.LogInformation("[Leaderboard] Refreshing leaderboards…");
+            using var conn = new SqlConnection(_connStr);
+            await conn.ExecuteAsync(
+                "EXEC dbo.sp_PopulateLeaderboards",
+                commandTimeout: 120);
+            _logger.LogInformation("[Leaderboard] Refresh completed.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Leaderboard] Refresh failed.");
+        }
+    }
+}
