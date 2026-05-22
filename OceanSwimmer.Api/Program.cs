@@ -929,7 +929,7 @@ app.MapGet("/swims/search", async (
     string? category,
     string? gender,
     int page     = 1,
-    int pageSize = 250) =>
+    int pageSize = 750) =>
 {
     page = Math.Max(page, 1);
 
@@ -946,7 +946,7 @@ app.MapGet("/swims/search", async (
     else if (raceId != null)
         pageSize = Math.Clamp(pageSize, 1, 10_000);     // race page — full results
     else
-        pageSize = Math.Clamp(pageSize, 1, 500);        // name search — headroom for common surnames
+        pageSize = Math.Clamp(pageSize, 1, 750);        // name search — headroom for common surnames
 
     int offset = (page - 1) * pageSize;
 
@@ -1286,7 +1286,12 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
     using var conn = new SqlConnection(connStr);
 
     var race = await conn.QueryFirstOrDefaultAsync(
-        "SELECT TOP 1 RaceName, RaceDate, Distance, OverallCompetitors FROM dbo.vw_OceanSwims_Search WHERE raceid = @raceId",
+        """
+        SELECT TOP 1 v.RaceName, v.RaceDate, v.Distance, v.OverallCompetitors, r.Location
+        FROM dbo.vw_OceanSwims_Search v
+        LEFT JOIN dbo.Race r ON r.raceid = v.raceid
+        WHERE v.raceid = @raceId
+        """,
         new { raceId });
 
     if (race == null)
@@ -1317,6 +1322,44 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
     // so all filter variants consolidate to the same SEO target.
     var canonicalUrl = $"https://oceanswimmer.com.au/results/{expectedSlug}-{raceId}";
 
+    // Build JSON-LD structured data (SportsEvent) so Googlebot sees real content
+    // even before the React app hydrates, preventing soft-404 classification.
+    var ldObj = new Dictionary<string, object?>
+    {
+        ["@context"]            = "https://schema.org",
+        ["@type"]               = "SportsEvent",
+        ["name"]                = raceName,
+        ["url"]                 = canonicalUrl,
+        ["description"]         = description,
+        ["sport"]               = "Ocean swimming",
+        ["eventStatus"]         = "https://schema.org/EventScheduled",
+        ["eventAttendanceMode"] = "https://schema.org/OfflineEventAttendanceMode",
+    };
+    if (race.RaceDate != null)
+        ldObj["startDate"] = ((DateTime)race.RaceDate).ToString("yyyy-MM-dd");
+    if (race.Distance != null)
+        ldObj["distance"] = new Dictionary<string, object>
+        {
+            ["@type"]    = "QuantitativeValue",
+            ["value"]    = (int)Math.Round((double)race.Distance * 1000),
+            ["unitCode"] = "MTR",
+        };
+    if (!string.IsNullOrWhiteSpace((string?)race.Location))
+        ldObj["location"] = new Dictionary<string, object>
+        {
+            ["@type"] = "Place",
+            ["name"]  = (string)race.Location!,
+        };
+
+    var jsonLd = System.Text.Json.JsonSerializer.Serialize(
+        ldObj,
+        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+    var jsonLdScript =
+        "\n    <script type=\"application/ld+json\">\n    " +
+        jsonLd.Replace("\n", "\n    ") +
+        "\n    </script>";
+
     // Strip the static homepage canonical so we don't end up with two tags.
     // (Use [^>]* not [^/]* so we don't choke on slashes in the href URL.)
     html = System.Text.RegularExpressions.Regex.Replace(
@@ -1328,7 +1371,8 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
         "<title>OceanSwimmer Results Search</title>",
         $"<title>{System.Net.WebUtility.HtmlEncode(raceName)} Results | OceanSwimmer</title>\n" +
         $"    <meta name=\"description\" content=\"{System.Net.WebUtility.HtmlEncode(description)}\" />\n" +
-        $"    <link rel=\"canonical\" href=\"{canonicalUrl}\" />");
+        $"    <link rel=\"canonical\" href=\"{canonicalUrl}\" />" +
+        jsonLdScript);
 
     return Results.Content(html, "text/html");
 });

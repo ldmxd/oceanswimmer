@@ -818,7 +818,7 @@
             const params = new URLSearchParams();
             if (forename) params.append("forename", forename);
             if (surname)  params.append("surname",  surname);
-            params.append("pageSize", 250);
+            params.append("pageSize", 750);
 
             const res  = await fetch(`${API_BASE}?${params.toString()}`);
             const json = await res.json();
