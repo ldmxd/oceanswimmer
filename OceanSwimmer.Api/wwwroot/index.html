@@ -422,7 +422,19 @@
             } else if (forename || surname) {
                 searchByName(forename, surname);
             } else {
-                loadRaces();
+                loadRacesAndDefault();
+            }
+        }
+
+        async function loadRacesAndDefault() {
+            // Remove the server-rendered block — JS DataTable takes over from here
+            document.getElementById('ssr-latest-race')?.remove();
+            await loadRaces();
+            if (allRaces.length > 0) {
+                const top  = allRaces[0];
+                const slug = generateSlug(top.raceName);
+                history.replaceState({}, "", `/results/${slug}-${top.raceId}`);
+                searchByRace(top.raceId, top.raceName);
             }
         }
 

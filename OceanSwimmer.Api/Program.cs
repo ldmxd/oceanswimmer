@@ -162,7 +162,8 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseDefaultFiles();
+// UseDefaultFiles removed — "/" is handled explicitly by MapGet below
+// so that we can inject server-side content for Googlebot.
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -1268,6 +1269,76 @@ app.MapGet("/races", async (string? q) =>
     }
 
     return Results.Ok(results);
+});
+
+// ── Homepage — server-side content injection for Googlebot ──────────────────
+// UseDefaultFiles is removed, so this handler owns "/". It pre-populates the
+// race count and injects a plain HTML results table for the latest race so
+// Googlebot sees real content before the JS DataTable hydrates.
+app.MapGet("/", async (IWebHostEnvironment env) =>
+{
+    var filePath = Path.Combine(env.WebRootPath, "index.html");
+    if (!File.Exists(filePath))
+        return Results.Problem("index.html not found");
+
+    using var conn = new SqlConnection(connStr);
+
+    var raceCount = await conn.ExecuteScalarAsync<int>(
+        "SELECT COUNT(DISTINCT raceid) FROM dbo.vw_OceanSwims_Search");
+
+    var rows = (await conn.QueryAsync(
+        """
+        SELECT RaceName, RaceDate, FullName, RaceTime,
+               OverallPosition, OverallCompetitors,
+               Category, CategoryPosition
+        FROM   dbo.vw_LatestRaceResults
+        ORDER  BY OverallPosition
+        """)).AsList();
+
+    var html = await File.ReadAllTextAsync(filePath);
+
+    // Pre-populate race count (JS will overwrite, but Googlebot sees it)
+    html = html.Replace(
+        "<div id=\"raceCount\" style=\"color:#666; margin-bottom:15px;\"></div>",
+        $"<div id=\"raceCount\" style=\"color:#666; margin-bottom:15px;\">{raceCount:N0} races tracked</div>");
+
+    // Build an SSR results block Googlebot can read; JS removes it on load
+    if (rows.Count > 0)
+    {
+        var first   = rows[0];
+        string raceName = first.RaceName ?? "";
+        string dateStr  = first.RaceDate != null
+            ? ((DateTime)first.RaceDate).ToString("d MMM yyyy") : "";
+
+        var sb = new StringBuilder();
+        sb.Append("<div id=\"ssr-latest-race\">");
+        sb.Append($"<p style=\"font-weight:600\">" +
+                  $"{System.Net.WebUtility.HtmlEncode(raceName)}" +
+                  $" &mdash; {dateStr}" +
+                  $" &mdash; {rows.Count} results</p>");
+        sb.Append("<table style=\"width:100%;border-collapse:collapse;font-size:14px\">");
+        sb.Append("<thead><tr>");
+        foreach (var h in new[] { "Pos", "Name", "Time", "Category", "Cat Pos" })
+            sb.Append($"<th style=\"text-align:left;padding:4px 8px;border-bottom:1px solid #ddd\">{h}</th>");
+        sb.Append("</tr></thead><tbody>");
+        foreach (var r in rows)
+        {
+            sb.Append("<tr>");
+            sb.Append($"<td style=\"padding:3px 8px\">{r.OverallPosition}</td>");
+            sb.Append($"<td style=\"padding:3px 8px\">{System.Net.WebUtility.HtmlEncode((string)(r.FullName   ?? ""))}</td>");
+            sb.Append($"<td style=\"padding:3px 8px\">{r.RaceTime}</td>");
+            sb.Append($"<td style=\"padding:3px 8px\">{System.Net.WebUtility.HtmlEncode((string)(r.Category  ?? ""))}</td>");
+            sb.Append($"<td style=\"padding:3px 8px\">{r.CategoryPosition}</td>");
+            sb.Append("</tr>");
+        }
+        sb.Append("</tbody></table></div>");
+
+        html = html.Replace(
+            "<table id=\"resultsTable\"",
+            sb.ToString() + "\n    <table id=\"resultsTable\"");
+    }
+
+    return Results.Content(html, "text/html");
 });
 
 app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
