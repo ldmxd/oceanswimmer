@@ -553,16 +553,31 @@
     <!-- ══ Leaderboards tab ═════════════════════════════════════════ -->
     <div id="tab-leaderboards" style="display:none;">
         <div class="lb-sub-nav">
-            <button class="lb-sub-btn active" data-lb="alltime" onclick="showLbTab('alltime')">All Time</button>
-            <button class="lb-sub-btn"        data-lb="seasonal" onclick="showLbTab('seasonal')">By Season</button>
+            <button class="lb-sub-btn active" data-lb="alltime"        onclick="showLbTab('alltime')">Swimmers · All Time</button>
+            <button class="lb-sub-btn"        data-lb="seasonal"       onclick="showLbTab('seasonal')">Swimmers · By Season</button>
+            <button class="lb-sub-btn"        data-lb="races"          onclick="showLbTab('races')">Races · All Time</button>
+            <button class="lb-sub-btn"        data-lb="races-seasonal" onclick="showLbTab('races-seasonal')">Races · By Season</button>
             <span id="lb-season-wrap" style="display:none; margin-left:8px;">
                 <select id="lb-season-select" onchange="loadSeasonal(this.value)"
+                        style="padding:5px 8px; font-size:14px; border:1px solid #ccc; border-radius:4px;"></select>
+            </span>
+            <span id="lb-race-season-wrap" style="display:none; margin-left:8px;">
+                <select id="lb-race-season-select" onchange="loadRaceSeasonal(this.value)"
                         style="padding:5px 8px; font-size:14px; border:1px solid #ccc; border-radius:4px;"></select>
             </span>
             <span id="lb-updated" style="font-size:12px; color:#aaa; margin-left:auto;"></span>
         </div>
         <div id="lb-alltime-wrap"></div>
-        <div id="lb-seasonal-wrap" style="display:none;"></div>
+        <div id="lb-seasonal-wrap"        style="display:none;"></div>
+        <div id="lb-races-filter-wrap"    style="display:none; margin-bottom:10px;">
+            <input id="lb-races-filter" type="text" placeholder="Filter races…"
+                   oninput="filterLbRaces(this.value)"
+                   style="padding:6px 10px; font-size:14px; border:1px solid #ccc;
+                          border-radius:20px; width:260px; outline:none;">
+            <span id="lb-races-count" style="font-size:13px; color:#aaa; margin-left:10px;"></span>
+        </div>
+        <div id="lb-races-wrap"           style="display:none;"></div>
+        <div id="lb-races-seasonal-wrap"  style="display:none;"></div>
     </div><!-- /#tab-leaderboards -->
 
     <script>
@@ -1518,19 +1533,48 @@
 
         // ── Leaderboards ─────────────────────────────────────────────
 
-        let lbAlltimeLoaded  = false;
-        let lbSeasonsLoaded  = false;
-        let lbCurrentSeason  = null;
+        let lbAlltimeLoaded      = false;
+        let lbSeasonsLoaded      = false;
+        let lbCurrentSeason      = null;
+        let lbRacesLoaded        = false;
+        let lbRaceSeasonsLoaded  = false;
+        let lbCurrentRaceSeason  = null;
+
+        // Stored data + sort state for swimmer leaderboards
+        let lbAlltimeData   = null;
+        let lbSeasonalData  = null;
+        let lbSwimmerSort   = { col: 'totalSwims', dir: -1 }; // -1 = descending
+
+        function sortLbSwimmers(col) {
+            lbSwimmerSort.dir = (lbSwimmerSort.col === col) ? -lbSwimmerSort.dir : -1;
+            lbSwimmerSort.col = col;
+            const isAllTime = document.getElementById('lb-alltime-wrap').style.display !== 'none';
+            const data  = isAllTime ? lbAlltimeData  : lbSeasonalData;
+            const wrap  = document.getElementById(isAllTime ? 'lb-alltime-wrap' : 'lb-seasonal-wrap');
+            const mode  = isAllTime ? 'alltime' : 'seasonal';
+            if (!data) return;
+            const sorted = [...data].sort((a, b) => {
+                const va = a[col] ?? 0, vb = b[col] ?? 0;
+                return lbSwimmerSort.dir * (va - vb);
+            });
+            wrap.innerHTML = renderLbTable(sorted, mode);
+        }
 
         function showLbTab(name) {
             document.querySelectorAll('.lb-sub-btn').forEach(b =>
                 b.classList.toggle('active', b.dataset.lb === name));
-            document.getElementById('lb-alltime-wrap').style.display  = name === 'alltime'  ? '' : 'none';
-            document.getElementById('lb-seasonal-wrap').style.display = name === 'seasonal' ? '' : 'none';
-            document.getElementById('lb-season-wrap').style.display   = name === 'seasonal' ? '' : 'none';
+            document.getElementById('lb-alltime-wrap').style.display        = name === 'alltime'        ? '' : 'none';
+            document.getElementById('lb-seasonal-wrap').style.display       = name === 'seasonal'       ? '' : 'none';
+            document.getElementById('lb-season-wrap').style.display         = name === 'seasonal'       ? '' : 'none';
+            document.getElementById('lb-races-filter-wrap').style.display   = name === 'races'          ? '' : 'none';
+            document.getElementById('lb-races-wrap').style.display          = name === 'races'          ? '' : 'none';
+            document.getElementById('lb-races-seasonal-wrap').style.display = name === 'races-seasonal' ? '' : 'none';
+            document.getElementById('lb-race-season-wrap').style.display    = name === 'races-seasonal' ? '' : 'none';
 
-            if (name === 'alltime' && !lbAlltimeLoaded)  loadLbAllTime();
-            if (name === 'seasonal' && !lbSeasonsLoaded) loadLbSeasons();
+            if (name === 'alltime'        && !lbAlltimeLoaded)     loadLbAllTime();
+            if (name === 'seasonal'       && !lbSeasonsLoaded)     loadLbSeasons();
+            if (name === 'races'          && !lbRacesLoaded)       loadLbRaces();
+            if (name === 'races-seasonal' && !lbRaceSeasonsLoaded) loadLbRaceSeasons();
         }
 
         async function loadLbAllTime() {
@@ -1539,7 +1583,9 @@
             try {
                 const rows = await fetch('/leaderboard/alltime').then(r => r.json());
                 lbAlltimeLoaded = true;
-                wrap.innerHTML = renderLbTable(rows, 'alltime');
+                lbAlltimeData   = rows;
+                lbSwimmerSort   = { col: 'totalSwims', dir: -1 };
+                wrap.innerHTML  = renderLbTable(rows, 'alltime');
             } catch {
                 wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load leaderboard.</p>';
             }
@@ -1565,7 +1611,9 @@
             wrap.innerHTML = '<p style="color:#999;font-size:14px;">Loading…</p>';
             try {
                 const rows = await fetch(`/leaderboard/seasonal?season=${season}`).then(r => r.json());
-                wrap.innerHTML = renderLbTable(rows, 'seasonal');
+                lbSeasonalData  = rows;
+                lbSwimmerSort   = { col: 'totalSwims', dir: -1 };
+                wrap.innerHTML  = renderLbTable(rows, 'seasonal');
             } catch {
                 wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load season.</p>';
             }
@@ -1577,9 +1625,16 @@
 
             const isAllTime = mode === 'alltime';
 
+            // Clickable sort header helper
+            function sortTh(label, col) {
+                const active = lbSwimmerSort.col === col;
+                const arrow  = active ? (lbSwimmerSort.dir === -1 ? ' ↓' : ' ↑') : '';
+                return `<th class="num" style="cursor:pointer;user-select:none" onclick="sortLbSwimmers('${col}')">${label}${arrow}</th>`;
+            }
+
             const headerCols = isAllTime
-                ? `<th class="lb-rank">#</th><th>Swimmer</th><th class="num">Swims</th><th class="num">Distance</th><th>First Swim</th><th>Last Swim</th>`
-                : `<th class="lb-rank">#</th><th>Swimmer</th><th class="num">Swims</th><th class="num">Distance</th>`;
+                ? `<th class="lb-rank">#</th><th>Swimmer</th>${sortTh('Swims','totalSwims')}${sortTh('Distance','totalDistanceKm')}<th>First Swim</th><th>Last Swim</th>`
+                : `<th class="lb-rank">#</th><th>Swimmer</th>${sortTh('Swims','totalSwims')}${sortTh('Distance','totalDistanceKm')}`;
 
             const bodyRows = rows.map((r, i) => {
                 const rank     = i + 1;
@@ -1602,6 +1657,100 @@
                     <td class="num">${r.totalSwims}</td>
                     <td class="num">${dist}</td>
                     ${extraCols}
+                </tr>`;
+            }).join('');
+
+            return `<table class="lb-table">
+                <thead><tr>${headerCols}</tr></thead>
+                <tbody>${bodyRows}</tbody>
+            </table>`;
+        }
+
+        // ── Race leaderboard functions ────────────────────────────────
+
+        let lbRacesAllData = null;
+
+        async function loadLbRaces() {
+            const wrap = document.getElementById('lb-races-wrap');
+            wrap.innerHTML = '<p style="color:#999;font-size:14px;">Loading…</p>';
+            try {
+                const rows = await fetch('/leaderboard/races').then(r => r.json());
+                lbRacesLoaded  = true;
+                lbRacesAllData = rows;
+                renderFilteredRaces('');
+            } catch {
+                wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load race leaderboard.</p>';
+            }
+        }
+
+        function filterLbRaces(query) {
+            renderFilteredRaces(query);
+        }
+
+        function renderFilteredRaces(query) {
+            const q = (query || '').trim().toLowerCase();
+            const filtered = q
+                ? lbRacesAllData.filter(r => (r.raceName || '').toLowerCase().includes(q))
+                : lbRacesAllData;
+
+            document.getElementById('lb-races-count').textContent =
+                q ? `${filtered.length} match${filtered.length !== 1 ? 'es' : ''}` : `${lbRacesAllData.length} editions`;
+
+            document.getElementById('lb-races-wrap').innerHTML = renderLbRacesTable(filtered);
+        }
+
+        async function loadLbRaceSeasons() {
+            const sel = document.getElementById('lb-race-season-select');
+            try {
+                const seasons = await fetch('/leaderboard/race-seasons').then(r => r.json());
+                sel.innerHTML = seasons.map(s => `<option value="${s}">${s}</option>`).join('');
+                lbRaceSeasonsLoaded = true;
+                if (seasons.length > 0) loadRaceSeasonal(seasons[0]);
+            } catch {
+                document.getElementById('lb-races-seasonal-wrap').innerHTML =
+                    '<p style="color:#c00;font-size:14px;">Could not load race seasons.</p>';
+            }
+        }
+
+        async function loadRaceSeasonal(year) {
+            if (lbCurrentRaceSeason === year) return;
+            lbCurrentRaceSeason = year;
+            const wrap = document.getElementById('lb-races-seasonal-wrap');
+            wrap.innerHTML = '<p style="color:#999;font-size:14px;">Loading…</p>';
+            try {
+                const rows = await fetch(`/leaderboard/races/seasonal?year=${year}`).then(r => r.json());
+                wrap.innerHTML = renderLbRacesTable(rows);
+            } catch {
+                wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load race season.</p>';
+            }
+        }
+
+        function renderLbRacesTable(rows) {
+            if (!rows || rows.length === 0)
+                return '<p style="color:#999;font-size:14px;">No data available.</p>';
+
+            // Both all-time and by-season show per-edition rows — same columns
+            const headerCols = `<th class="lb-rank">#</th><th>Race</th><th>Date</th><th class="num">Events</th><th class="num">Competitors</th>`;
+
+            const bodyRows = rows.map((r, i) => {
+                const rank    = i + 1;
+                const rankCls = rank === 1 ? 'lb-rank-1' : rank === 2 ? 'lb-rank-2' : rank === 3 ? 'lb-rank-3' : 'lb-rank';
+                const medal   = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+                const dateStr  = r.raceDate
+                    ? new Date(r.raceDate).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+                    : '–';
+                const raceCell = r.raceId && r.raceName
+                    ? `<a href="/results/${generateSlug(r.raceName)}-${r.raceId}"
+                          style="color:#0066cc;text-decoration:none"
+                          onmouseover="this.style.textDecoration='underline'"
+                          onmouseout="this.style.textDecoration='none'">${r.raceName}</a>`
+                    : (r.raceName || '–');
+                return `<tr>
+                    <td class="${rankCls}">${medal}</td>
+                    <td>${raceCell}</td>
+                    <td>${dateStr}</td>
+                    <td class="num">${r.events ?? '–'}</td>
+                    <td class="num">${(r.totalCompetitors ?? 0).toLocaleString()}</td>
                 </tr>`;
             }).join('');
 

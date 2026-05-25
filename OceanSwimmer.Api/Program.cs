@@ -1235,7 +1235,7 @@ app.MapGet("/leaderboard/alltime", async () =>
             FirstSwimDate,
             LastSwimDate
         FROM dbo.LeaderboardAllTime
-        ORDER BY TotalSwims DESC");
+        ORDER BY TotalSwims DESC, TotalDistanceKm DESC");
 
     return Results.Ok(rows.Select(r => new
     {
@@ -1270,7 +1270,7 @@ app.MapGet("/leaderboard/seasonal", async (int? season) =>
             TotalDistanceKm
         FROM dbo.LeaderboardSeasonal
         WHERE Season = @targetSeason
-        ORDER BY TotalSwims DESC",
+        ORDER BY TotalSwims DESC, TotalDistanceKm DESC",
         new { targetSeason });
 
     return Results.Ok(rows.Select(r => new
@@ -1280,6 +1280,67 @@ app.MapGet("/leaderboard/seasonal", async (int? season) =>
         fullName        = (string?)r.FullName,
         totalSwims      = (int)r.TotalSwims,
         totalDistanceKm = (decimal?)r.TotalDistanceKm
+    }));
+});
+
+// Race leaderboard — all editions straight from vw_OceanSwims_Rank.
+// The view includes RaceId (MIN(raceid)) so the frontend can link to results.
+app.MapGet("/leaderboard/races", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.QueryAsync(@"
+        SELECT
+            RaceId,
+            RaceName,
+            RaceDate,
+            Races               AS Events,
+            OverallCompetitors  AS TotalCompetitors
+        FROM dbo.vw_OceanSwims_Rank
+        ORDER BY OverallCompetitors DESC");
+
+    return Results.Ok(rows.Select(r => new
+    {
+        raceId           = (int)r.RaceId,
+        raceName         = (string?)r.RaceName,
+        raceDate         = (DateTime?)r.RaceDate,
+        events           = (int)r.Events,
+        totalCompetitors = (int)r.TotalCompetitors
+    }));
+});
+
+// Distinct years available in the race leaderboard (for the season picker).
+app.MapGet("/leaderboard/race-seasons", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var years = await conn.QueryAsync<int>(
+        "SELECT DISTINCT YEAR(RaceDate) FROM dbo.vw_OceanSwims_Rank ORDER BY 1 DESC");
+    return Results.Ok(years);
+});
+
+// Top races for a single season — filtered from vw_OceanSwims_Rank by year.
+app.MapGet("/leaderboard/races/seasonal", async (int? year) =>
+{
+    var targetYear = year ?? DateTime.Now.Year;
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.QueryAsync(@"
+        SELECT
+            RaceId,
+            RaceName,
+            RaceDate,
+            Races               AS Events,
+            OverallCompetitors  AS TotalCompetitors
+        FROM dbo.vw_OceanSwims_Rank
+        WHERE YEAR(RaceDate) = @targetYear
+        ORDER BY OverallCompetitors DESC",
+        new { targetYear });
+
+    return Results.Ok(rows.Select(r => new
+    {
+        raceId           = (int)r.RaceId,
+        raceName         = (string?)r.RaceName,
+        raceDate         = (DateTime?)r.RaceDate,
+        events           = (int)r.Events,
+        totalCompetitors = (int)r.TotalCompetitors
     }));
 });
 
