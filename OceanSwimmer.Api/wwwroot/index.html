@@ -646,6 +646,8 @@
         const API_BASE = "/swims/search";
 
         let allRaces      = [];
+        let raceSortCol   = 'date';        // 'date' | 'race' | 'distance' | 'results'
+        let raceSortDir   = 'desc';        // 'asc' | 'desc'
         let currentUser   = null;          // null = logged out
         let claimedSwimIds = new Set();    // Set of oceanswimsId integers
 
@@ -981,6 +983,37 @@
             renderRaceList(filtered);
         }
 
+        function sortRaces(col) {
+            // Distance and Results default to descending first; Date and Race to ascending
+            const defaultDir = (col === 'distance' || col === 'results') ? 'desc' : 'asc';
+            if (raceSortCol === col) {
+                raceSortDir = raceSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                raceSortCol = col;
+                raceSortDir = defaultDir;
+            }
+            filterRaces();
+        }
+
+        function applySortToRaces(races) {
+            const dir = raceSortDir === 'asc' ? 1 : -1;
+            return [...races].sort((a, b) => {
+                switch (raceSortCol) {
+                    case 'date':
+                        const pd = s => { const p = (s||'').split('-'); return p.length===3 ? new Date(`${p[1]} ${p[0]}, ${p[2]}`) : new Date(0); };
+                        return dir * (pd(a.raceDate) - pd(b.raceDate));
+                    case 'race':
+                        return dir * ((a.raceName || '').localeCompare(b.raceName || ''));
+                    case 'distance':
+                        return dir * ((a.distance ?? 0) - (b.distance ?? 0));
+                    case 'results':
+                        return dir * ((a.resultCount ?? 0) - (b.resultCount ?? 0));
+                    default:
+                        return 0;
+                }
+            });
+        }
+
         function renderRaceList(races) {
             const container = document.getElementById("raceList");
             const countEl   = document.getElementById("races-count");
@@ -996,7 +1029,9 @@
                 return;
             }
 
-            const rows = races.map(r => {
+            const sorted = applySortToRaces(races);
+
+            const rows = sorted.map(r => {
                 const slug = generateSlug(r.raceName);
                 const href = `/results/${slug}-${r.raceId}`;
                 const date = r.raceDate
@@ -1015,14 +1050,17 @@
                 </tr>`;
             }).join("");
 
+            const arrow = col => raceSortCol === col ? (raceSortDir === 'asc' ? ' ↑' : ' ↓') : '';
+            const thStyle = 'cursor:pointer;user-select:none;';
+
             container.innerHTML = `
                 <table class="race-table">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Race</th>
-                            <th class="num">Distance</th>
-                            <th class="num">Results</th>
+                            <th style="${thStyle}" onclick="sortRaces('date')">Date${arrow('date')}</th>
+                            <th style="${thStyle}" onclick="sortRaces('race')">Race${arrow('race')}</th>
+                            <th class="num" style="${thStyle}" onclick="sortRaces('distance')">Distance${arrow('distance')}</th>
+                            <th class="num" style="${thStyle}" onclick="sortRaces('results')">Results${arrow('results')}</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
