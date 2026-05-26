@@ -1344,6 +1344,71 @@ app.MapGet("/leaderboard/races/seasonal", async (int? year) =>
     }));
 });
 
+// ── Podium leaderboards ──────────────────────────────────────────────────────
+
+// Distinct seasons available for the podium leaderboard.
+app.MapGet("/leaderboard/podium/seasons", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var seasons = await conn.QueryAsync<int>(
+        "SELECT DISTINCT YEAR(RaceDate) FROM dbo.vw_OceanSwims_Search WHERE OverallPosition IS NOT NULL ORDER BY 1 DESC");
+    return Results.Ok(seasons);
+});
+
+// Podium leaderboard — all time.
+// Reads from the pre-computed dbo.PodiumLeaderboardAllTime table
+// (populated weekly by sp_PopulatePodiumLeaderboards).
+app.MapGet("/leaderboard/podium/alltime", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.QueryAsync(@"
+        SELECT Forename, Surname, FullName, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
+        FROM dbo.PodiumLeaderboardAllTime
+        WHERE HasOverallPodium = 1
+        ORDER BY Firsts DESC, Seconds DESC, Thirds DESC, TopTens DESC");
+
+    return Results.Ok(rows.Select(r => new
+    {
+        forename      = (string?)r.Forename,
+        surname       = (string?)r.Surname,
+        fullName      = (string?)r.FullName,
+        totalSwims    = (int)r.TotalSwims,
+        firsts        = (int)r.Firsts,
+        seconds       = (int)r.Seconds,
+        thirds        = (int)r.Thirds,
+        topTens       = (int)r.TopTens,
+        avgPercentile = r.AvgPercentile == null ? (double?)null : (double)r.AvgPercentile
+    }));
+});
+
+// Podium leaderboard — single season.
+// Reads from the pre-computed dbo.PodiumLeaderboardSeasonal table.
+app.MapGet("/leaderboard/podium/seasonal", async (int? season) =>
+{
+    var targetSeason = season ?? DateTime.Now.Year;
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.QueryAsync(@"
+        SELECT Forename, Surname, FullName, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
+        FROM dbo.PodiumLeaderboardSeasonal
+        WHERE Season = @targetSeason
+          AND HasOverallPodium = 1
+        ORDER BY Firsts DESC, Seconds DESC, Thirds DESC, TopTens DESC",
+        new { targetSeason });
+
+    return Results.Ok(rows.Select(r => new
+    {
+        forename      = (string?)r.Forename,
+        surname       = (string?)r.Surname,
+        fullName      = (string?)r.FullName,
+        totalSwims    = (int)r.TotalSwims,
+        firsts        = (int)r.Firsts,
+        seconds       = (int)r.Seconds,
+        thirds        = (int)r.Thirds,
+        topTens       = (int)r.TopTens,
+        avgPercentile = r.AvgPercentile == null ? (double?)null : (double)r.AvgPercentile
+    }));
+});
+
 app.MapGet("/races", async (string? q) =>
 {
     var results = new List<object>();
@@ -1811,6 +1876,10 @@ public class LeaderboardRefreshService : BackgroundService
             using var conn = new SqlConnection(_connStr);
             await conn.ExecuteAsync(
                 "EXEC dbo.sp_PopulateLeaderboards",
+                commandTimeout: 120);
+            _logger.LogInformation("[Leaderboard] Swimmer leaderboards refreshed. Refreshing podium leaderboards…");
+            await conn.ExecuteAsync(
+                "EXEC dbo.sp_PopulatePodiumLeaderboards",
                 commandTimeout: 120);
             _logger.LogInformation("[Leaderboard] Refresh completed.");
         }
