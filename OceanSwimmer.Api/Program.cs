@@ -1226,10 +1226,11 @@ app.MapGet("/leaderboard/alltime", async () =>
 {
     using var conn = new SqlConnection(connStr);
     var rows = await conn.QueryAsync(@"
-        SELECT TOP 50
+        SELECT TOP 1000
             Forename,
             Surname,
             FullName,
+            Gender,
             TotalSwims,
             TotalDistanceKm,
             FirstSwimDate,
@@ -1242,6 +1243,7 @@ app.MapGet("/leaderboard/alltime", async () =>
         forename        = (string?)r.Forename,
         surname         = (string?)r.Surname,
         fullName        = (string?)r.FullName,
+        gender          = (string?)r.Gender,
         totalSwims      = (int)r.TotalSwims,
         totalDistanceKm = (decimal?)r.TotalDistanceKm,
         firstSwimDate   = (DateTime?)r.FirstSwimDate,
@@ -1262,10 +1264,11 @@ app.MapGet("/leaderboard/seasonal", async (int? season) =>
     var targetSeason = season ?? DateTime.Now.Year;
     using var conn = new SqlConnection(connStr);
     var rows = await conn.QueryAsync(@"
-        SELECT TOP 50
+        SELECT TOP 1000
             Forename,
             Surname,
             FullName,
+            Gender,
             TotalSwims,
             TotalDistanceKm
         FROM dbo.LeaderboardSeasonal
@@ -1278,6 +1281,7 @@ app.MapGet("/leaderboard/seasonal", async (int? season) =>
         forename        = (string?)r.Forename,
         surname         = (string?)r.Surname,
         fullName        = (string?)r.FullName,
+        gender          = (string?)r.Gender,
         totalSwims      = (int)r.TotalSwims,
         totalDistanceKm = (decimal?)r.TotalDistanceKm
     }));
@@ -1362,7 +1366,7 @@ app.MapGet("/leaderboard/podium/alltime", async () =>
 {
     using var conn = new SqlConnection(connStr);
     var rows = await conn.QueryAsync(@"
-        SELECT Forename, Surname, FullName, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
+        SELECT Forename, Surname, FullName, Gender, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
         FROM dbo.PodiumLeaderboardAllTime
         WHERE HasOverallPodium = 1
         ORDER BY Firsts DESC, Seconds DESC, Thirds DESC, TopTens DESC");
@@ -1372,6 +1376,7 @@ app.MapGet("/leaderboard/podium/alltime", async () =>
         forename      = (string?)r.Forename,
         surname       = (string?)r.Surname,
         fullName      = (string?)r.FullName,
+        gender        = (string?)r.Gender,
         totalSwims    = (int)r.TotalSwims,
         firsts        = (int)r.Firsts,
         seconds       = (int)r.Seconds,
@@ -1388,7 +1393,7 @@ app.MapGet("/leaderboard/podium/seasonal", async (int? season) =>
     var targetSeason = season ?? DateTime.Now.Year;
     using var conn = new SqlConnection(connStr);
     var rows = await conn.QueryAsync(@"
-        SELECT Forename, Surname, FullName, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
+        SELECT Forename, Surname, FullName, Gender, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
         FROM dbo.PodiumLeaderboardSeasonal
         WHERE Season = @targetSeason
           AND HasOverallPodium = 1
@@ -1400,6 +1405,7 @@ app.MapGet("/leaderboard/podium/seasonal", async (int? season) =>
         forename      = (string?)r.Forename,
         surname       = (string?)r.Surname,
         fullName      = (string?)r.FullName,
+        gender        = (string?)r.Gender,
         totalSwims    = (int)r.TotalSwims,
         firsts        = (int)r.Firsts,
         seconds       = (int)r.Seconds,

@@ -365,6 +365,43 @@
             color: #fff;
         }
 
+        /* ── Leaderboard filter bar ─────────────────────────────────── */
+        .lb-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .lb-name-filter {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            width: 220px;
+            outline: none;
+        }
+
+        .lb-gender-btn {
+            padding: 4px 12px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 14px;
+            background: #fff;
+            cursor: pointer;
+            color: #555;
+            transition: all 0.15s;
+        }
+
+        .lb-gender-btn:hover { background: #f5f5f5; }
+
+        .lb-gender-btn.active {
+            background: #0066cc;
+            border-color: #0066cc;
+            color: #fff;
+        }
+
         /* ── Leaderboard table ───────────────────────────────────── */
         .lb-table {
             width: 100%;
@@ -573,6 +610,19 @@
             </span>
             <span id="lb-updated" style="font-size:12px; color:#aaa; margin-left:auto;"></span>
         </div>
+        <!-- Shared name + gender filter — shown for swimmer & podium tabs -->
+        <div id="lb-swimmer-filter-bar" class="lb-filter-bar">
+            <input id="lb-name-filter" class="lb-name-filter" type="text"
+                   placeholder="Filter by name…" autocomplete="off"
+                   oninput="applyLbFilters()">
+            <div style="display:flex; gap:4px;">
+                <button class="lb-gender-btn active" data-g="all"    onclick="setLbGender('all')">All</button>
+                <button class="lb-gender-btn"         data-g="Male"   onclick="setLbGender('Male')">♂ Male</button>
+                <button class="lb-gender-btn"         data-g="Female" onclick="setLbGender('Female')">♀ Female</button>
+            </div>
+            <span id="lb-filter-count" style="font-size:13px; color:#aaa;"></span>
+        </div>
+
         <div id="lb-alltime-wrap"></div>
         <div id="lb-seasonal-wrap"        style="display:none;"></div>
         <div id="lb-races-filter-wrap"    style="display:none; margin-bottom:10px;">
@@ -1594,24 +1644,64 @@
         let lbSeasonalData  = null;
         let lbSwimmerSort   = { col: 'totalSwims', dir: -1 }; // -1 = descending
 
+        // ── Shared filter state ────────────────────────────────────
+        let lbNameFilter   = '';
+        let lbGenderFilter = 'all'; // 'all' | 'M' | 'F'
+
+        function setLbGender(g) {
+            lbGenderFilter = g;
+            document.querySelectorAll('.lb-gender-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.g === g));
+
+            applyLbFilters();
+        }
+
+        function applyLbFilters() {
+            lbNameFilter = (document.getElementById('lb-name-filter').value || '').trim().toLowerCase();
+            const active = document.querySelector('.lb-sub-btn.active')?.dataset.lb;
+
+            let data = null, wrapId = null, renderFn = null;
+            if (active === 'alltime')         { data = lbAlltimeData;       wrapId = 'lb-alltime-wrap';          renderFn = rows => renderLbTable(rows, 'alltime'); }
+            if (active === 'seasonal')        { data = lbSeasonalData;      wrapId = 'lb-seasonal-wrap';         renderFn = rows => renderLbTable(rows, 'seasonal'); }
+            if (active === 'podium')          { data = lbPodiumAlltimeData; wrapId = 'lb-podium-wrap';           renderFn = renderLbPodiumTable; }
+            if (active === 'podium-seasonal') { data = lbPodiumSeasonalData;wrapId = 'lb-podium-seasonal-wrap';  renderFn = renderLbPodiumTable; }
+
+            if (!data || !wrapId) return;
+
+            let filtered = data;
+            if (lbNameFilter)           filtered = filtered.filter(r => (r.fullName || '').toLowerCase().includes(lbNameFilter));
+            if (lbGenderFilter !== 'all') filtered = filtered.filter(r => r.gender === lbGenderFilter);
+
+            const countEl = document.getElementById('lb-filter-count');
+            if (filtered.length < data.length) {
+                countEl.textContent = `${filtered.length} of ${data.length}`;
+            } else {
+                countEl.textContent = `${data.length} swimmers`;
+            }
+
+            document.getElementById(wrapId).innerHTML = renderFn(filtered);
+        }
+
         function sortLbSwimmers(col) {
             lbSwimmerSort.dir = (lbSwimmerSort.col === col) ? -lbSwimmerSort.dir : -1;
             lbSwimmerSort.col = col;
             const isAllTime = document.getElementById('lb-alltime-wrap').style.display !== 'none';
-            const data  = isAllTime ? lbAlltimeData  : lbSeasonalData;
-            const wrap  = document.getElementById(isAllTime ? 'lb-alltime-wrap' : 'lb-seasonal-wrap');
-            const mode  = isAllTime ? 'alltime' : 'seasonal';
-            if (!data) return;
-            const sorted = [...data].sort((a, b) => {
-                const va = a[col] ?? 0, vb = b[col] ?? 0;
-                return lbSwimmerSort.dir * (va - vb);
-            });
-            wrap.innerHTML = renderLbTable(sorted, mode);
+            if (!lbAlltimeData && !lbSeasonalData) return;
+            if (isAllTime && lbAlltimeData) {
+                lbAlltimeData  = [...lbAlltimeData].sort((a, b) => lbSwimmerSort.dir * ((a[col] ?? 0) - (b[col] ?? 0)));
+            } else if (lbSeasonalData) {
+                lbSeasonalData = [...lbSeasonalData].sort((a, b) => lbSwimmerSort.dir * ((a[col] ?? 0) - (b[col] ?? 0)));
+            }
+            applyLbFilters();
         }
 
         function showLbTab(name) {
             document.querySelectorAll('.lb-sub-btn').forEach(b =>
                 b.classList.toggle('active', b.dataset.lb === name));
+
+            const isSwimmerTab = name === 'alltime' || name === 'seasonal' || name === 'podium' || name === 'podium-seasonal';
+            document.getElementById('lb-swimmer-filter-bar').style.display = isSwimmerTab ? '' : 'none';
+
             document.getElementById('lb-alltime-wrap').style.display        = name === 'alltime'         ? '' : 'none';
             document.getElementById('lb-seasonal-wrap').style.display       = name === 'seasonal'        ? '' : 'none';
             document.getElementById('lb-season-wrap').style.display         = name === 'seasonal'        ? '' : 'none';
@@ -1639,7 +1729,7 @@
                 lbAlltimeLoaded = true;
                 lbAlltimeData   = rows;
                 lbSwimmerSort   = { col: 'totalSwims', dir: -1 };
-                wrap.innerHTML  = renderLbTable(rows, 'alltime');
+                applyLbFilters();
             } catch {
                 wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load leaderboard.</p>';
             }
@@ -1667,7 +1757,7 @@
                 const rows = await fetch(`/leaderboard/seasonal?season=${season}`).then(r => r.json());
                 lbSeasonalData  = rows;
                 lbSwimmerSort   = { col: 'totalSwims', dir: -1 };
-                wrap.innerHTML  = renderLbTable(rows, 'seasonal');
+                applyLbFilters();
             } catch {
                 wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load season.</p>';
             }
@@ -1824,15 +1914,18 @@
             lbPodiumSort.dir = (lbPodiumSort.col === col) ? -lbPodiumSort.dir : -1;
             lbPodiumSort.col = col;
             const isAllTime = document.getElementById('lb-podium-wrap').style.display !== 'none';
-            const data = isAllTime ? lbPodiumAlltimeData : lbPodiumSeasonalData;
-            const wrap = document.getElementById(isAllTime ? 'lb-podium-wrap' : 'lb-podium-seasonal-wrap');
-            if (!data) return;
-            const sorted = [...data].sort((a, b) => {
-                const va = a[col] ?? 0, vb = b[col] ?? 0;
-                if (col === 'swimmer') return lbPodiumSort.dir * ((a.fullName||'').localeCompare(b.fullName||''));
-                return lbPodiumSort.dir * (va - vb);
-            });
-            wrap.innerHTML = renderLbPodiumTable(sorted);
+            if (isAllTime && lbPodiumAlltimeData) {
+                lbPodiumAlltimeData = [...lbPodiumAlltimeData].sort((a, b) => {
+                    if (col === 'swimmer') return lbPodiumSort.dir * ((a.fullName||'').localeCompare(b.fullName||''));
+                    return lbPodiumSort.dir * ((a[col] ?? 0) - (b[col] ?? 0));
+                });
+            } else if (lbPodiumSeasonalData) {
+                lbPodiumSeasonalData = [...lbPodiumSeasonalData].sort((a, b) => {
+                    if (col === 'swimmer') return lbPodiumSort.dir * ((a.fullName||'').localeCompare(b.fullName||''));
+                    return lbPodiumSort.dir * ((a[col] ?? 0) - (b[col] ?? 0));
+                });
+            }
+            applyLbFilters();
         }
 
         async function loadLbPodium() {
@@ -1843,7 +1936,7 @@
                 lbPodiumLoaded      = true;
                 lbPodiumAlltimeData = rows;
                 lbPodiumSort        = { col: 'firsts', dir: -1 };
-                wrap.innerHTML      = renderLbPodiumTable(rows);
+                applyLbFilters();
             } catch {
                 wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load podium leaderboard.</p>';
             }
@@ -1871,7 +1964,7 @@
                 const rows = await fetch(`/leaderboard/podium/seasonal?season=${season}`).then(r => r.json());
                 lbPodiumSeasonalData = rows;
                 lbPodiumSort         = { col: 'firsts', dir: -1 };
-                wrap.innerHTML       = renderLbPodiumTable(rows);
+                applyLbFilters();
             } catch {
                 wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load podium season.</p>';
             }
