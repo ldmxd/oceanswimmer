@@ -1633,6 +1633,19 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
         jsonLd.Replace("\n", "\n    ") +
         "\n    </script>";
 
+    // Fetch top results for this race to render server-side.
+    // Googlebot sees a real table; the JS DataTable replaces it on load.
+    var raceRows = (await conn.QueryAsync(
+        """
+        SELECT TOP 500
+               OverallPosition, FullName, RaceTime,
+               Category, CategoryPosition, Gender
+        FROM   dbo.vw_OceanSwims_Search
+        WHERE  raceid = @raceId
+        ORDER  BY OverallPosition
+        """,
+        new { raceId })).AsList();
+
     // Strip the static homepage canonical so we don't end up with two tags.
     // (Use [^>]* not [^/]* so we don't choke on slashes in the href URL.)
     html = System.Text.RegularExpressions.Regex.Replace(
@@ -1646,6 +1659,38 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
         $"    <meta name=\"description\" content=\"{System.Net.WebUtility.HtmlEncode(description)}\" />\n" +
         $"    <link rel=\"canonical\" href=\"{canonicalUrl}\" />" +
         jsonLdScript);
+
+    // Inject SSR results table so Googlebot sees real content before JS runs.
+    if (raceRows.Count > 0)
+    {
+        var ssrSb = new StringBuilder();
+        ssrSb.Append("<div id=\"ssr-race-results\">");
+        ssrSb.Append($"<h1 style=\"font-size:1.3em;margin-bottom:8px\">" +
+                     $"{System.Net.WebUtility.HtmlEncode(raceName)}" +
+                     (dateStr != "" ? $" &mdash; {dateStr}" : "") +
+                     $"</h1>");
+        ssrSb.Append($"<p style=\"margin-bottom:8px;color:#555\">{raceRows.Count} finishers</p>");
+        ssrSb.Append("<table style=\"width:100%;border-collapse:collapse;font-size:14px\">");
+        ssrSb.Append("<thead><tr>");
+        foreach (var h in new[] { "Pos", "Name", "Time", "Category", "Cat Pos" })
+            ssrSb.Append($"<th style=\"text-align:left;padding:4px 8px;border-bottom:1px solid #ddd\">{h}</th>");
+        ssrSb.Append("</tr></thead><tbody>");
+        foreach (var r in raceRows)
+        {
+            ssrSb.Append("<tr>");
+            ssrSb.Append($"<td style=\"padding:3px 8px\">{r.OverallPosition}</td>");
+            ssrSb.Append($"<td style=\"padding:3px 8px\">{System.Net.WebUtility.HtmlEncode((string)(r.FullName ?? ""))}</td>");
+            ssrSb.Append($"<td style=\"padding:3px 8px\">{r.RaceTime}</td>");
+            ssrSb.Append($"<td style=\"padding:3px 8px\">{System.Net.WebUtility.HtmlEncode((string)(r.Category ?? ""))}</td>");
+            ssrSb.Append($"<td style=\"padding:3px 8px\">{r.CategoryPosition}</td>");
+            ssrSb.Append("</tr>");
+        }
+        ssrSb.Append("</tbody></table></div>");
+
+        html = html.Replace(
+            "<table id=\"resultsTable\"",
+            ssrSb.ToString() + "\n    <table id=\"resultsTable\"");
+    }
 
     return Results.Content(html, "text/html");
 });

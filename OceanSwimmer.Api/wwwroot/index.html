@@ -39,7 +39,20 @@
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 2rem;
+            margin: 0;
+            padding: 0 2rem 2rem;
+        }
+
+        /* ── Site header band ───────────────────────────────────────── */
+        #site-header {
+            background: #003d6b;
+            width: 100%;
+            height: 160px;
+            margin: 0 -2rem 1.5rem;
+            width: calc(100% + 4rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         h1 {
@@ -497,13 +510,8 @@
 </head>
 <body>
 
-    <!-- Banner -->
-    <div style="margin-bottom: 1rem;">
-        <a href="/" style="display:inline-block;">
-            <img src="/images/oceanswimmer-banner.png"
-                 alt="Ocean Swimmer"
-                 style="max-width: 500px; width: 100%; height: auto; display: block;" />
-        </a>
+    <!-- Site header band — artist will fill this with artwork -->
+    <div id="site-header">
     </div>
 
     <h1 style="display:flex; align-items:center; margin-top: 0;">
@@ -678,8 +686,9 @@
         }
 
         async function loadRacesAndDefault() {
-            // Remove the server-rendered block — JS DataTable takes over from here
+            // Remove the server-rendered blocks — JS DataTable takes over from here
             document.getElementById('ssr-latest-race')?.remove();
+            document.getElementById('ssr-race-results')?.remove();
             // Fetch races (needed for auto-select); rendering is deferred until Races tab opens
             const res = await fetch("/races");
             allRaces  = await res.json();
@@ -1214,6 +1223,7 @@
 
         function searchByRace(raceId, raceDescription) {
             if (!raceId) { console.warn("searchByRace called with invalid raceId:", raceId); return; }
+            document.getElementById('ssr-race-results')?.remove();
 
             $("#forename").val("");
             $("#surname").val("");
