@@ -33,6 +33,20 @@
             color: #222;
         }
 
+        /* ── Site header band ───────────────────────────────────────── */
+        #site-header {
+            margin: -2rem -2rem 1.5rem;
+            width: calc(100% + 4rem);
+            display: block;
+            line-height: 0;
+        }
+
+        #site-header img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
         /* ── Header ─────────────────────────────────────────────── */
         .page-header {
             display: flex;
@@ -284,12 +298,14 @@
 </head>
 <body>
 
-<!-- Banner -->
-<div style="margin-bottom: 1rem;">
-    <a href="/" style="display:inline-block;">
-        <img src="/images/oceanswimmer-banner.png"
-             alt="Ocean Swimmer"
-             style="max-width: 500px; width: 100%; height: auto; display: block;" />
+<!-- Site header — responsive banner -->
+<div id="site-header">
+    <a href="/">
+        <picture>
+            <source media="(max-width: 479px)"  srcset="/images/Stacked.jpg" />
+            <source media="(max-width: 767px)"  srcset="/images/landscape.jpg" />
+            <img src="/images/Desktop.jpg" alt="Ocean Swimmer" />
+        </picture>
     </a>
 </div>
 

@@ -45,14 +45,16 @@
 
         /* ── Site header band ───────────────────────────────────────── */
         #site-header {
-            background: #003d6b;
-            width: 100%;
-            height: 160px;
             margin: 0 -2rem 1.5rem;
             width: calc(100% + 4rem);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: block;
+            line-height: 0;
+        }
+
+        #site-header img {
+            width: 100%;
+            height: auto;
+            display: block;
         }
 
         h1 {
@@ -510,8 +512,15 @@
 </head>
 <body>
 
-    <!-- Site header band — artist will fill this with artwork -->
+    <!-- Site header — responsive banner -->
     <div id="site-header">
+        <a href="/">
+            <picture>
+                <source media="(max-width: 479px)"  srcset="/images/Stacked.jpg" />
+                <source media="(max-width: 767px)"  srcset="/images/landscape.jpg" />
+                <img src="/images/Desktop.jpg" alt="Ocean Swimmer" />
+            </picture>
+        </a>
     </div>
 
     <h1 style="display:flex; align-items:center; margin-top: 0;">
