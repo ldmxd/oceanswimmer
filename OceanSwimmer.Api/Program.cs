@@ -163,6 +163,12 @@ app.Use(async (context, next) =>
         {
             // If lookup fails, fall through and serve index.html as normal.
         }
+
+        // raceId param present but no matching race — return 410 Gone so
+        // Google de-indexes these stale URLs instead of treating them as
+        // soft 404s (homepage served on a query-string URL).
+        context.Response.StatusCode = 410;
+        return;
     }
     await next();
 });
@@ -1659,6 +1665,22 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
         $"    <meta name=\"description\" content=\"{System.Net.WebUtility.HtmlEncode(description)}\" />\n" +
         $"    <link rel=\"canonical\" href=\"{canonicalUrl}\" />" +
         jsonLdScript);
+
+    // No results yet — tell Google not to index until there's real content.
+    if (raceRows.Count == 0)
+    {
+        html = html.Replace(
+            "<meta name=\"robots\" content=\"index, follow\" />",
+            "<meta name=\"robots\" content=\"noindex, follow\" />");
+
+        // If there's no robots meta at all, inject one before </head>
+        if (!html.Contains("noindex"))
+        {
+            html = html.Replace(
+                "</head>",
+                "    <meta name=\"robots\" content=\"noindex, follow\" />\n</head>");
+        }
+    }
 
     // Inject SSR results table so Googlebot sees real content before JS runs.
     if (raceRows.Count > 0)

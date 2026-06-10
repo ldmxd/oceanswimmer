@@ -1232,7 +1232,6 @@
 
         function searchByRace(raceId, raceDescription) {
             if (!raceId) { console.warn("searchByRace called with invalid raceId:", raceId); return; }
-            document.getElementById('ssr-race-results')?.remove();
 
             $("#forename").val("");
             $("#surname").val("");
@@ -1244,6 +1243,9 @@
             fetch(`${API_BASE}?${params.toString()}`)
                 .then(res => res.json())
                 .then(json => {
+                    // Remove SSR content only after real data has loaded — ensures
+                    // Googlebot's JS renderer always sees content, not a blank table.
+                    document.getElementById('ssr-race-results')?.remove();
                     document.getElementById("resultCount").innerText =
                         `Selected race — ${json.count} results`;
                     table.clear();
