@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Data.SqlClient;
 using OceanSwimmer.Api.Helpers;
-using SendGrid;
-using SendGrid.Helpers.Mail;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text;
@@ -1784,26 +1784,23 @@ async Task LogSearchAsync(
 // ── Email helpers ────────────────────────────────────────────────────────────
 async Task SendVerificationEmailAsync(string toEmail, string token)
 {
-    var apiKey    = builder.Configuration["SendGrid:ApiKey"];
-    var fromEmail = builder.Configuration["SendGrid:FromEmail"] ?? "noreply@oceanswimmer.com.au";
-    var fromName  = builder.Configuration["SendGrid:FromName"]  ?? "OceanSwimmer";
-    var baseUrl   = builder.Configuration["App:BaseUrl"]        ?? "https://oceanswimmer.com.au";
+    var apiKey    = builder.Configuration["Resend:ApiKey"];
+    var fromEmail = builder.Configuration["Resend:FromEmail"] ?? "noreply@oceanswimmer.com.au";
+    var fromName  = builder.Configuration["Resend:FromName"]  ?? "OceanSwimmer";
+    var baseUrl   = builder.Configuration["App:BaseUrl"]       ?? "https://oceanswimmer.com.au";
 
     if (string.IsNullOrWhiteSpace(apiKey) || apiKey.StartsWith("YOUR_"))
     {
-        // SendGrid not configured — log the link so local dev still works
+        // Resend not configured — log the link so local dev still works
         Console.WriteLine($"[DEV] Verify link: {baseUrl}/auth/verify-email?token={token}");
         return;
     }
 
     var verifyUrl = $"{baseUrl}/auth/verify-email?token={token}";
-    var client    = new SendGridClient(apiKey);
-    var msg       = new SendGridMessage
-    {
-        From            = new EmailAddress(fromEmail, fromName),
-        Subject         = "Verify your OceanSwimmer account",
-        PlainTextContent = $"Hi,\n\nPlease verify your email address by clicking the link below:\n\n{verifyUrl}\n\nThis link expires in 24 hours.\n\n— The OceanSwimmer team",
-        HtmlContent     = $@"
+    await SendResendEmailAsync(apiKey, fromEmail, fromName, toEmail,
+        subject: "Verify your OceanSwimmer account",
+        text: $"Hi,\n\nPlease verify your email address by clicking the link below:\n\n{verifyUrl}\n\nThis link expires in 24 hours.\n\n— The OceanSwimmer team",
+        html: $@"
             <p>Hi,</p>
             <p>Please verify your email address to activate your OceanSwimmer account:</p>
             <p style=""margin:24px 0"">
@@ -1814,18 +1811,15 @@ async Task SendVerificationEmailAsync(string toEmail, string token)
                 </a>
             </p>
             <p style=""color:#888;font-size:13px;"">This link expires in 24 hours. If you didn't register, you can ignore this email.</p>
-            <p style=""color:#888;font-size:13px;"">— The OceanSwimmer team</p>"
-    };
-    msg.AddTo(new EmailAddress(toEmail));
-    await client.SendEmailAsync(msg);
+            <p style=""color:#888;font-size:13px;"">— The OceanSwimmer team</p>");
 }
 
 async Task SendPasswordResetEmailAsync(string toEmail, string token)
 {
-    var apiKey    = builder.Configuration["SendGrid:ApiKey"];
-    var fromEmail = builder.Configuration["SendGrid:FromEmail"] ?? "noreply@oceanswimmer.com.au";
-    var fromName  = builder.Configuration["SendGrid:FromName"]  ?? "OceanSwimmer";
-    var baseUrl   = builder.Configuration["App:BaseUrl"]        ?? "https://oceanswimmer.com.au";
+    var apiKey    = builder.Configuration["Resend:ApiKey"];
+    var fromEmail = builder.Configuration["Resend:FromEmail"] ?? "noreply@oceanswimmer.com.au";
+    var fromName  = builder.Configuration["Resend:FromName"]  ?? "OceanSwimmer";
+    var baseUrl   = builder.Configuration["App:BaseUrl"]       ?? "https://oceanswimmer.com.au";
 
     var resetUrl = $"{baseUrl}/reset-password.html?token={token}";
 
@@ -1835,13 +1829,10 @@ async Task SendPasswordResetEmailAsync(string toEmail, string token)
         return;
     }
 
-    var client = new SendGridClient(apiKey);
-    var msg    = new SendGridMessage
-    {
-        From             = new EmailAddress(fromEmail, fromName),
-        Subject          = "Reset your OceanSwimmer password",
-        PlainTextContent = $"Hi,\n\nYou requested a password reset for your OceanSwimmer account. Click the link below to set a new password:\n\n{resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n— The OceanSwimmer team",
-        HtmlContent      = $@"
+    await SendResendEmailAsync(apiKey, fromEmail, fromName, toEmail,
+        subject: "Reset your OceanSwimmer password",
+        text: $"Hi,\n\nYou requested a password reset for your OceanSwimmer account. Click the link below to set a new password:\n\n{resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n— The OceanSwimmer team",
+        html: $@"
             <p>Hi,</p>
             <p>You requested a password reset for your OceanSwimmer account.</p>
             <p style=""margin:24px 0"">
@@ -1852,10 +1843,33 @@ async Task SendPasswordResetEmailAsync(string toEmail, string token)
                 </a>
             </p>
             <p style=""color:#888;font-size:13px;"">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
-            <p style=""color:#888;font-size:13px;"">— The OceanSwimmer team</p>"
-    };
-    msg.AddTo(new EmailAddress(toEmail));
-    await client.SendEmailAsync(msg);
+            <p style=""color:#888;font-size:13px;"">— The OceanSwimmer team</p>");
+}
+
+async Task SendResendEmailAsync(string apiKey, string fromEmail, string fromName,
+    string toEmail, string subject, string text, string html)
+{
+    using var http = new HttpClient();
+    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+    var payload = JsonSerializer.Serialize(new
+    {
+        from    = $"{fromName} <{fromEmail}>",
+        to      = new[] { toEmail },
+        subject,
+        text,
+        html
+    });
+
+    var response = await http.PostAsync(
+        "https://api.resend.com/emails",
+        new StringContent(payload, System.Text.Encoding.UTF8, "application/json"));
+
+    if (!response.IsSuccessStatusCode)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        Console.WriteLine($"[Resend] Error {(int)response.StatusCode}: {body}");
+    }
 }
 
 // ── Request models ───────────────────────────────────────────────────────────
