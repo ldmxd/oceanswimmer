@@ -904,8 +904,17 @@ app.MapGet("/sitemap.xml", async () =>
 {
     using var conn = new SqlConnection(connStr);
 
-    var races = await conn.QueryAsync<(int RaceId, string RaceName)>(
-        "SELECT DISTINCT raceid, RaceName FROM dbo.vw_OceanSwims_Search"
+    // One row per raceid — pick the canonical/display name and latest date.
+    // Using TOP 1 per raceid avoids duplicate URLs when the view returns
+    // multiple RaceNames for the same raceid.
+    var races = await conn.QueryAsync<(int RaceId, string RaceName, DateTime? RaceDate)>(
+        """
+        SELECT raceid,
+               MIN(RaceName)  AS RaceName,
+               MAX(RaceDate)  AS RaceDate
+        FROM   dbo.vw_OceanSwims_Search
+        GROUP  BY raceid
+        """
     );
 
     var sb = new StringBuilder();
@@ -913,16 +922,29 @@ app.MapGet("/sitemap.xml", async () =>
     sb.AppendLine(@"<?xml version=""1.0"" encoding=""UTF-8""?>");
     sb.AppendLine(@"<urlset xmlns=""http://www.sitemaps.org/schemas/sitemap/0.9"">");
 
-    sb.AppendLine(@"
-  <url>
-    <loc>https://oceanswimmer.com.au/</loc>
-  </url>");
+    // Homepage
+    sb.AppendLine("  <url>");
+    sb.AppendLine("    <loc>https://oceanswimmer.com.au/</loc>");
+    sb.AppendLine($"    <lastmod>{DateTime.UtcNow:yyyy-MM-dd}</lastmod>");
+    sb.AppendLine("    <changefreq>daily</changefreq>");
+    sb.AppendLine("    <priority>1.0</priority>");
+    sb.AppendLine("  </url>");
+
+    var cutoff = DateTime.UtcNow.AddMonths(-6);
 
     foreach (var r in races)
     {
-        var slug = SlugHelper.GenerateSlug(r.RaceName);
+        var slug     = SlugHelper.GenerateSlug(r.RaceName);
+        var lastmod  = r.RaceDate?.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.AddYears(-1).ToString("yyyy-MM-dd");
+        var isRecent = r.RaceDate.HasValue && r.RaceDate.Value >= cutoff;
+        var freq     = isRecent ? "monthly" : "never";
+        var priority = isRecent ? "0.8" : "0.5";
+
         sb.AppendLine("  <url>");
         sb.AppendLine($"    <loc>https://oceanswimmer.com.au/results/{slug}-{r.RaceId}</loc>");
+        sb.AppendLine($"    <lastmod>{lastmod}</lastmod>");
+        sb.AppendLine($"    <changefreq>{freq}</changefreq>");
+        sb.AppendLine($"    <priority>{priority}</priority>");
         sb.AppendLine("  </url>");
     }
 

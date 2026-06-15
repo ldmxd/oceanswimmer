@@ -702,9 +702,9 @@
             const res = await fetch("/races");
             allRaces  = await res.json();
             if (allRaces.length > 0) {
-                const top  = allRaces[0];
-                const slug = generateSlug(top.raceName);
-                history.replaceState({}, "", `/results/${slug}-${top.raceId}`);
+                const top = allRaces[0];
+                // Don't replaceState — keep the URL as "/" so the homepage
+                // stays indexable as a stable landing page.
                 searchByRace(top.raceId, top.raceName);
             }
         }
