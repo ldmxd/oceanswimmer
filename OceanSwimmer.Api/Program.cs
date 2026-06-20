@@ -1688,8 +1688,28 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
         $"    <link rel=\"canonical\" href=\"{canonicalUrl}\" />" +
         jsonLdScript);
 
-    // No results yet — tell Google not to index until there's real content.
-    if (raceRows.Count == 0)
+    // Strip the generic homepage meta description — we injected a race-specific one above.
+    html = System.Text.RegularExpressions.Regex.Replace(
+        html,
+        @"<meta\s+name=""description""\s+content=""Search ocean swim[^""]*""\s*/>\s*",
+        "");
+
+    // Replace generic OG tags with race-specific values.
+    var encodedRaceTitle = System.Net.WebUtility.HtmlEncode($"{raceName} Results | OceanSwimmer");
+    var encodedDesc      = System.Net.WebUtility.HtmlEncode(description);
+    html = html.Replace(
+        "<meta property=\"og:title\" content=\"OceanSwimmer Results Search\" />",
+        $"<meta property=\"og:title\" content=\"{encodedRaceTitle}\" />");
+    html = html.Replace(
+        "<meta property=\"og:description\" content=\"Search ocean swim race results across Australia. Claim your swims, track your progress.\" />",
+        $"<meta property=\"og:description\" content=\"{encodedDesc}\" />");
+    html = html.Replace(
+        "<meta property=\"og:url\" content=\"https://oceanswimmer.com.au/\" />",
+        $"<meta property=\"og:url\" content=\"{canonicalUrl}\" />");
+
+    // Thin or empty results — tell Google not to index until there's real content.
+    // Races with < 25 finishers don't have enough content to avoid soft-404 classification.
+    if (raceRows.Count < 25)
     {
         html = html.Replace(
             "<meta name=\"robots\" content=\"index, follow\" />",
