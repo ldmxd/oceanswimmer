@@ -1396,7 +1396,7 @@ app.MapGet("/leaderboard/podium/alltime", async () =>
     var rows = await conn.QueryAsync(@"
         SELECT Forename, Surname, FullName, Gender, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
         FROM dbo.PodiumLeaderboardAllTime
-        WHERE HasOverallPodium = 1
+        WHERE HasGenderPodium = 1
         ORDER BY Firsts DESC, Seconds DESC, Thirds DESC, TopTens DESC");
 
     return Results.Ok(rows.Select(r => new
@@ -1424,7 +1424,7 @@ app.MapGet("/leaderboard/podium/seasonal", async (int? season) =>
         SELECT Forename, Surname, FullName, Gender, TotalSwims, Firsts, Seconds, Thirds, TopTens, AvgPercentile
         FROM dbo.PodiumLeaderboardSeasonal
         WHERE Season = @targetSeason
-          AND HasOverallPodium = 1
+          AND HasGenderPodium = 1
         ORDER BY Firsts DESC, Seconds DESC, Thirds DESC, TopTens DESC",
         new { targetSeason });
 
