@@ -612,6 +612,7 @@
             <button class="lb-sub-btn"        data-lb="seasonal"       onclick="showLbTab('seasonal')">Swimmers · By Season</button>
             <button class="lb-sub-btn admin-only" data-lb="races"          onclick="showLbTab('races')"          style="display:none;">Races · All Time</button>
             <button class="lb-sub-btn admin-only" data-lb="races-seasonal" onclick="showLbTab('races-seasonal')" style="display:none;">Races · By Season</button>
+            <button class="lb-sub-btn"        data-lb="loyalty"        onclick="showLbTab('loyalty')">🏅 Race Loyal</button>
             <button class="lb-sub-btn"        data-lb="podium"         onclick="showLbTab('podium')">Podium · All Time</button>
             <button class="lb-sub-btn"        data-lb="podium-seasonal" onclick="showLbTab('podium-seasonal')">Podium · By Season</button>
             <span id="lb-season-wrap" style="display:none; margin-left:8px;">
@@ -627,6 +628,11 @@
                         style="padding:5px 8px; font-size:14px; border:1px solid #ccc; border-radius:4px;"></select>
             </span>
             <span id="lb-updated" style="font-size:12px; color:#aaa; margin-left:auto;"></span>
+        </div>
+        <!-- Race loyalty dropdown — shown below sub-nav when loyalty tab is active -->
+        <div id="lb-loyalty-race-wrap" style="display:none; margin-bottom:12px;">
+            <select id="lb-loyalty-race-select" onchange="loadLbLoyalty(this.value)"
+                    style="padding:5px 8px; font-size:14px; border:1px solid #ccc; border-radius:4px; min-width:260px;"></select>
         </div>
         <!-- Shared name + gender filter — shown for swimmer & podium tabs -->
         <div id="lb-swimmer-filter-bar" class="lb-filter-bar">
@@ -652,6 +658,7 @@
         </div>
         <div id="lb-races-wrap"           style="display:none;"></div>
         <div id="lb-races-seasonal-wrap"  style="display:none;"></div>
+        <div id="lb-loyalty-wrap"         style="display:none;"></div>
         <div id="lb-podium-wrap"          style="display:none;"></div>
         <div id="lb-podium-seasonal-wrap" style="display:none;"></div>
     </div><!-- /#tab-leaderboards -->
@@ -1659,6 +1666,10 @@
         let lbCurrentSeason      = null;
         let lbRacesLoaded        = false;
         let lbRaceSeasonsLoaded  = false;
+        let lbLoyaltyRacesLoaded = false;
+        let lbLoyaltyAbortCtrl  = null;
+        let lbLoyaltyData       = null;
+        let lbLoyaltySort       = { col: 'years', dir: -1 };
         let lbPodiumLoaded       = false;
         let lbPodiumSeasonsLoaded = false;
         let lbCurrentPodiumSeason = null;
@@ -1734,6 +1745,8 @@
             document.getElementById('lb-races-wrap').style.display          = name === 'races'           ? '' : 'none';
             document.getElementById('lb-races-seasonal-wrap').style.display = name === 'races-seasonal'  ? '' : 'none';
             document.getElementById('lb-race-season-wrap').style.display    = name === 'races-seasonal'  ? '' : 'none';
+            document.getElementById('lb-loyalty-wrap').style.display        = name === 'loyalty'         ? '' : 'none';
+            document.getElementById('lb-loyalty-race-wrap').style.display   = name === 'loyalty'         ? '' : 'none';
             document.getElementById('lb-podium-wrap').style.display         = name === 'podium'          ? '' : 'none';
             document.getElementById('lb-podium-seasonal-wrap').style.display= name === 'podium-seasonal' ? '' : 'none';
             document.getElementById('lb-podium-season-wrap').style.display  = name === 'podium-seasonal' ? '' : 'none';
@@ -1742,6 +1755,7 @@
             if (name === 'seasonal'        && !lbSeasonsLoaded)      loadLbSeasons();
             if (name === 'races'           && !lbRacesLoaded)        loadLbRaces();
             if (name === 'races-seasonal'  && !lbRaceSeasonsLoaded)  loadLbRaceSeasons();
+            if (name === 'loyalty'         && !lbLoyaltyRacesLoaded) loadLbLoyaltyRaces();
             if (name === 'podium'          && !lbPodiumLoaded)       loadLbPodium();
             if (name === 'podium-seasonal' && !lbPodiumSeasonsLoaded) loadLbPodiumSeasons();
         }
@@ -1965,6 +1979,89 @@
             } catch {
                 wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load podium leaderboard.</p>';
             }
+        }
+
+        // ── Race Loyalty leaderboard ─────────────────────────────────────────
+        async function loadLbLoyaltyRaces() {
+            const sel = document.getElementById('lb-loyalty-race-select');
+            try {
+                const races = await fetch('/leaderboard/canonical-races').then(r => r.json());
+                lbLoyaltyRacesLoaded = true;
+                sel.innerHTML = races.map(r => `<option value="${r}">${r}</option>`).join('');
+                if (races.length) loadLbLoyalty(races[0]);
+            } catch {
+                document.getElementById('lb-loyalty-wrap').innerHTML =
+                    '<p style="color:#c00;font-size:14px;">Could not load races.</p>';
+            }
+        }
+
+        async function loadLbLoyalty(race) {
+            if (lbLoyaltyAbortCtrl) lbLoyaltyAbortCtrl.abort();
+            lbLoyaltyAbortCtrl = new AbortController();
+            const signal = lbLoyaltyAbortCtrl.signal;
+
+            const wrap = document.getElementById('lb-loyalty-wrap');
+            wrap.innerHTML = '<p style="color:#999;font-size:14px;">Loading…</p>';
+            try {
+                lbLoyaltyData = await fetch(`/leaderboard/race-loyalty?race=${encodeURIComponent(race)}`, { signal }).then(r => r.json());
+                lbLoyaltySort = { col: 'years', dir: -1 };
+                renderLbLoyalty();
+            } catch (e) {
+                if (e.name !== 'AbortError')
+                    wrap.innerHTML = '<p style="color:#c00;font-size:14px;">Could not load leaderboard.</p>';
+            }
+        }
+
+        function sortLbLoyalty(col) {
+            lbLoyaltySort.dir = (lbLoyaltySort.col === col) ? -lbLoyaltySort.dir : -1;
+            lbLoyaltySort.col = col;
+            renderLbLoyalty();
+        }
+
+        function renderLbLoyalty() {
+            const wrap = document.getElementById('lb-loyalty-wrap');
+            if (!lbLoyaltyData || !lbLoyaltyData.length) {
+                wrap.innerHTML = '<p style="color:#999;font-size:14px;">No results found.</p>';
+                return;
+            }
+
+            const sorted = [...lbLoyaltyData].sort((a, b) => {
+                const col = lbLoyaltySort.col;
+                if (col === 'swimmer') {
+                    const na = `${a.surname} ${a.forename}`, nb = `${b.surname} ${b.forename}`;
+                    return lbLoyaltySort.dir * na.localeCompare(nb);
+                }
+                return lbLoyaltySort.dir * ((a[col] ?? 0) - (b[col] ?? 0));
+            });
+
+            function th(label, col, isNum = true) {
+                const active = lbLoyaltySort.col === col;
+                const arrow  = active ? (lbLoyaltySort.dir === -1 ? ' ↓' : ' ↑') : '';
+                const cls    = isNum ? 'class="num"' : '';
+                return `<th ${cls} style="cursor:pointer;user-select:none" onclick="sortLbLoyalty('${col}')">${label}${arrow}</th>`;
+            }
+
+            wrap.innerHTML = `
+                <table class="lb-table">
+                    <thead><tr>
+                        <th class="lb-rank">#</th>
+                        ${th('Swimmer', 'swimmer', false)}
+                        ${th('Years',   'years')}
+                        ${th('Editions','editions')}
+                        ${th('Swims',   'swims')}
+                        ${th('Km',      'totalKm')}
+                    </tr></thead>
+                    <tbody>${sorted.map((r, i) => `
+                        <tr>
+                            <td class="lb-rank">${i + 1}</td>
+                            <td>${r.forename} ${r.surname}</td>
+                            <td class="num">${r.years}</td>
+                            <td class="num">${r.editions}</td>
+                            <td class="num">${r.swims}</td>
+                            <td class="num">${r.totalKm % 1 === 0 ? r.totalKm.toFixed(0) : r.totalKm.toFixed(1)}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
         }
 
         async function loadLbPodiumSeasons() {

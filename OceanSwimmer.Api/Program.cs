@@ -1446,6 +1446,42 @@ app.MapGet("/leaderboard/podium/seasonal", async (int? season) =>
     }));
 });
 
+// Race loyalty — canonical race list for dropdown (10+ editions), ordered by edition count desc
+app.MapGet("/leaderboard/canonical-races", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var races = await conn.QueryAsync<string>(@"
+        SELECT CanonicalRaceName
+        FROM dbo.Race
+        WHERE CanonicalRaceName IS NOT NULL
+          AND IsVisible = 1
+        GROUP BY CanonicalRaceName
+        HAVING COUNT(*) >= 10
+        ORDER BY COUNT(*) DESC");
+    return Results.Ok(races);
+});
+
+// Race loyalty leaderboard — top 250 per race from pre-computed table
+app.MapGet("/leaderboard/race-loyalty", async (string race) =>
+{
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.QueryAsync(@"
+        SELECT Rank, Forename, Surname, Years, Editions, Swims, TotalKm
+        FROM dbo.RaceLoyaltyLeaderboard
+        WHERE CanonicalRaceName = @race AND Rank <= 250
+        ORDER BY Rank, Surname, Forename",
+        new { race });
+    return Results.Ok(rows.Select(r => new {
+        rank     = (int)r.Rank,
+        forename = (string)r.Forename,
+        surname  = (string)r.Surname,
+        years    = (int)r.Years,
+        editions = (int)r.Editions,
+        swims    = (int)r.Swims,
+        totalKm  = (decimal)r.TotalKm
+    }));
+});
+
 app.MapGet("/races", async (string? q) =>
 {
     var results = new List<object>();
