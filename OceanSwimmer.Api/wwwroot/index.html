@@ -706,15 +706,18 @@
             // Remove the server-rendered blocks — JS DataTable takes over from here
             document.getElementById('ssr-latest-race')?.remove();
             document.getElementById('ssr-race-results')?.remove();
-            // Fetch races (needed for auto-select); rendering is deferred until Races tab opens
-            const res = await fetch("/races");
-            allRaces  = await res.json();
-            if (allRaces.length > 0) {
-                const top = allRaces[0];
-                // Don't replaceState — keep the URL as "/" so the homepage
-                // stays indexable as a stable landing page.
+            // Only fetch the latest race for the default view — full list is deferred until Races tab opens
+            const res = await fetch("/races/latest");
+            if (res.ok) {
+                const top = await res.json();
                 searchByRace(top.raceId, top.raceName);
             }
+        }
+
+        async function ensureRacesLoaded() {
+            if (allRaces.length > 0) return;
+            const res = await fetch("/races");
+            allRaces  = await res.json();
         }
 
         // initPage() called at bottom of main script block once everything is defined
@@ -2155,18 +2158,12 @@
             document.querySelectorAll(".tab-btn").forEach(b => {
                 b.classList.toggle("active", b.dataset.tab === name);
             });
-            // Lazy-render races if switching to the tab for the first time
+            // Lazy-load races on first tab open
             if (name === "races") {
                 if (allRaces.length > 0 && !document.querySelector(".race-table")) {
                     renderRaceList(allRaces);
                 } else if (allRaces.length === 0) {
-                    // allRaces not yet loaded (page was opened on a specific race URL)
-                    fetch("/races")
-                        .then(r => r.json())
-                        .then(data => {
-                            allRaces = data;
-                            renderRaceList(allRaces);
-                        });
+                    ensureRacesLoaded().then(() => renderRaceList(allRaces));
                 }
             }
             // Lazy-load leaderboard all-time on first open

@@ -1482,6 +1482,19 @@ app.MapGet("/leaderboard/race-loyalty", async (string race) =>
     }));
 });
 
+// Latest race only — used for homepage default load, avoids fetching the full race list
+app.MapGet("/races/latest", async () =>
+{
+    using var conn = new SqlConnection(connStr);
+    var row = await conn.QueryFirstOrDefaultAsync(@"
+        SELECT TOP 1 raceid, MIN(RaceName) AS RaceName
+        FROM dbo.vw_OceanSwims_Search
+        GROUP BY raceid
+        ORDER BY MAX(RaceDate) DESC");
+    if (row == null) return Results.NotFound();
+    return Results.Ok(new { raceId = (int)row.raceid, raceName = (string)row.RaceName });
+});
+
 app.MapGet("/races", async (string? q) =>
 {
     var results = new List<object>();
