@@ -610,8 +610,8 @@
         <div class="lb-sub-nav">
             <button class="lb-sub-btn active" data-lb="alltime"        onclick="showLbTab('alltime')">Swimmers · All Time</button>
             <button class="lb-sub-btn"        data-lb="seasonal"       onclick="showLbTab('seasonal')">Swimmers · By Season</button>
-            <button class="lb-sub-btn"        data-lb="races"          onclick="showLbTab('races')">Races · All Time</button>
-            <button class="lb-sub-btn"        data-lb="races-seasonal" onclick="showLbTab('races-seasonal')">Races · By Season</button>
+            <button class="lb-sub-btn admin-only" data-lb="races"          onclick="showLbTab('races')"          style="display:none;">Races · All Time</button>
+            <button class="lb-sub-btn admin-only" data-lb="races-seasonal" onclick="showLbTab('races-seasonal')" style="display:none;">Races · By Season</button>
             <button class="lb-sub-btn"        data-lb="podium"         onclick="showLbTab('podium')">Podium · All Time</button>
             <button class="lb-sub-btn"        data-lb="podium-seasonal" onclick="showLbTab('podium-seasonal')">Podium · By Season</button>
             <span id="lb-season-wrap" style="display:none; margin-left:8px;">
@@ -851,6 +851,8 @@
                 const res = await fetch('/auth/me');
                 if (res.ok) {
                     currentUser = await res.json();
+                    document.querySelectorAll('.admin-only').forEach(el =>
+                        el.style.display = currentUser.isAdmin ? '' : 'none');
                     await loadClaimedSwims();
                 }
             } catch (e) {
@@ -893,6 +895,7 @@
             await fetch('/auth/logout', { method: 'POST' });
             currentUser    = null;
             claimedSwimIds = new Set();
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             closeBothPanels();
             renderAuthBar();
             table.draw(false);

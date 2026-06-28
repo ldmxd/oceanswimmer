@@ -205,16 +205,18 @@ app.MapGet("/auth/me", async (HttpContext ctx) =>
     var userIdStr = ctx.User.FindFirst("userId")?.Value;
 
     string? swimmerForename = null, swimmerSurname = null;
+    bool isAdmin = false;
     if (userIdStr != null)
     {
         var userId = int.Parse(userIdStr);
         using var conn = new SqlConnection(connStr);
 
         var names = await conn.QueryFirstOrDefaultAsync(
-            "SELECT SwimmerForename, SwimmerSurname FROM auth.Users WHERE UserId = @userId",
+            "SELECT SwimmerForename, SwimmerSurname, IsAdmin FROM auth.Users WHERE UserId = @userId",
             new { userId });
         swimmerForename = (string?)names?.SwimmerForename;
         swimmerSurname  = (string?)names?.SwimmerSurname;
+        isAdmin         = (bool?)names?.IsAdmin ?? false;
 
         // Name not stored yet — infer it from an existing claimed result and save it
         if (swimmerForename == null && swimmerSurname == null)
@@ -247,7 +249,8 @@ app.MapGet("/auth/me", async (HttpContext ctx) =>
         name            = ctx.User.FindFirst(ClaimTypes.Name)?.Value,
         picture         = ctx.User.FindFirst("urn:google:picture")?.Value,
         swimmerForename,
-        swimmerSurname
+        swimmerSurname,
+        isAdmin
     });
 });
 
