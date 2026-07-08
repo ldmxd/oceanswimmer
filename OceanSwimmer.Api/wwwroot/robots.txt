@@ -4,5 +4,7 @@ Disallow: /athlete/
 Disallow: /swims/
 Disallow: /api/
 Disallow: /login/
+Disallow: /leaderboard/
+Disallow: /races/
 
 Sitemap: https://oceanswimmer.com.au/sitemap.xml
