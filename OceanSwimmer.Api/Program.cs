@@ -1726,6 +1726,23 @@ app.MapGet("/results/{slug}", async (string slug, IWebHostEnvironment env) =>
         """,
         new { raceId })).AsList();
 
+    // Populate the persistent winner-highlight line above the results table.
+    // Unlike the ssr-race-results block below, this stays on the page after
+    // JS hydrates, and gets refreshed client-side when a category/gender
+    // filter is applied (see searchByRace / searchByRaceAndCategory in the JS).
+    // The date is no longer a separate line — it's merged into the bold
+    // #resultCount heading client-side instead.
+    if (raceRows.Count > 0)
+    {
+        var winner = raceRows.First();
+        var winnerName = System.Net.WebUtility.HtmlEncode((string)(winner.FullName ?? ""));
+        var winnerTime = winner.RaceTime == null ? "" : winner.RaceTime.ToString();
+        if (winnerName != "")
+            html = html.Replace(
+                "<div id=\"raceHighlight\" style=\"font-size:14px;color:#333;margin-bottom:6px;\"></div>",
+                $"<div id=\"raceHighlight\" style=\"font-size:14px;color:#333;margin-bottom:6px;\">🏆 {winnerName} &mdash; {winnerTime}</div>");
+    }
+
     // Strip the static homepage canonical so we don't end up with two tags.
     // (Use [^>]* not [^/]* so we don't choke on slashes in the href URL.)
     html = System.Text.RegularExpressions.Regex.Replace(

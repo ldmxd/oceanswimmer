@@ -36,6 +36,11 @@
     <link rel="stylesheet"
           href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" />
 
+    <!-- Google Font for the site blurb -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -524,13 +529,23 @@
     </div>
 
     <h1 style="display:flex; align-items:center; margin-top: 0;">
-        <span>Race Results</span>
-        <span style="margin-left:1.5rem; font-size:0.85rem; font-weight:normal; color:#888;">Your personal spreadsheet for ocean swimming results.</span>
+        <span style="font-weight:700; font-size:1.4rem; color:#002a5a; font-family:'Dancing Script', cursive;">Your personal spreadsheet for ocean swimming results.</span>
         <!-- Auth bar sits on the right of the header row -->
         <div id="authBar" style="margin-left:auto;">
             <!-- populated by initAuth() -->
         </div>
     </h1>
+
+    <div id="raceCount" style="color:#666; margin-bottom:15px;"></div>
+
+    <h3 style="margin:0 0 8px; font-size:1.05rem; color:#333;">Find your races...</h3>
+
+    <form id="searchForm" style="margin-bottom:1rem;">
+        <input type="text" id="forename" placeholder="Forename" />
+        <input type="text" id="surname"  placeholder="Surname"  />
+        <button type="submit">Search</button>
+        <button type="button" id="clearSearchBtn">Clear</button>
+    </form>
 
     <!-- Tab nav -->
     <nav class="tab-nav">
@@ -545,14 +560,6 @@
     <!-- Results to Claim panel (populated by JS, only shown when logged in) -->
     <div id="swimsToClaimPanelWrap" style="display:none;"></div>
 
-    <div id="raceCount" style="color:#666; margin-bottom:15px;"></div>
-
-    <form id="searchForm">
-        <input type="text" id="forename" placeholder="Forename" />
-        <input type="text" id="surname"  placeholder="Surname"  />
-        <button type="submit">Search</button>
-    </form>
-
     <div style="display:flex; align-items:center; gap:16px; margin-bottom:0.5rem;">
         <div id="resultCount" style="font-weight:600;"></div>
         <button id="claimAllBtn"
@@ -562,7 +569,10 @@
             ★ Claim All
         </button>
         <span id="claimAllMsg" style="font-size:13px; color:#555; display:none;"></span>
+        <div id="csvButtonContainer" style="margin-left:auto;"></div>
     </div>
+
+    <div id="raceHighlight" style="font-size:14px;color:#333;margin-bottom:6px;"></div>
 
     <table id="resultsTable" class="display" style="width:100%">
         <thead>
@@ -737,6 +747,7 @@
         let raceSortDir   = 'desc';        // 'asc' | 'desc'
         let currentUser   = null;          // null = logged out
         let claimedSwimIds = new Set();    // Set of oceanswimsId integers
+        let claimedRaceIds = new Set();    // Set of raceId integers the user has a claimed swim in (any category)
 
 
         // ── DataTable ────────────────────────────────────────────────
@@ -748,7 +759,7 @@
                 // 0 Race
                 {
                     data: "raceName",
-                    width: "32%",
+                    width: "22%",
                     render: function (data, type, row) {
                         return `<a href="#" class="race-link"
                                    data-raceid="${row.raceId}"
@@ -758,7 +769,7 @@
                 // 1 Date
                 {
                     data: "raceDate",
-                    width: "10%",
+                    width: "8%",
                     render: function (data, type) {
                         if (!data) return "";
                         if (type === "display") {
@@ -771,13 +782,13 @@
                     }
                 },
                 // 2 Distance
-                { data: "distance", width: "6%" },
+                { data: "distance", width: "5%" },
                 // 3 Time
                 { data: "raceTime", width: "6%" },
                 // 4 Name
                 {
                     data: "fullName",
-                    width: "18%",
+                    width: "14%",
                     render: function (data, type, row) {
                         return `<a href="#" class="name-link"
                                    data-forename="${row.forename}"
@@ -787,6 +798,7 @@
                 // 5 Category
                 {
                     data: "category",
+                    width: "10%",
                     render: function (data, type, row) {
                         if (data == null || data === '') return '–';
                         return `<a href="#" class="category-link"
@@ -796,21 +808,21 @@
                     }
                 },
                 // 6 Category Pos
-                { data: "categoryPosition",  width: "5%" },
+                { data: "categoryPosition", width: "4%" },
                 // 7 Category %
-                { data: "categoryPercentile",  width: "5%",
+                { data: "categoryPercentile", width: "5%",
                   render: d => d != null ? `${d.toFixed(2)}%` : "" },
                 // 8 Overall Pos
-                { data: "overallPosition",   width: "5%" },
+                { data: "overallPosition", width: "4%" },
                 // 9 Overall %
                 { data: "overallPercentile", width: "5%",
                   render: d => d != null ? `${d.toFixed(2)}%` : "" },
                 // 10 Gender
-                { data: "gender" },
+                { data: "gender", width: "4%" },
                 // 11 Gender Pos
-                { data: "genderPosition",    width: "5%" },
+                { data: "genderPosition", width: "4%" },
                 // 12 Gender %
-                { data: "genderPercentile",  width: "5%",
+                { data: "genderPercentile", width: "5%",
                   render: d => d != null ? `${d.toFixed(2)}%` : "" },
                 // 13 Claim ★
                 {
@@ -843,7 +855,46 @@
                 }
             ],
             dom: "Bfrtip",
-            buttons: ["csv"],
+            buttons: [{
+                extend: "csv",
+                // Exclude the Claim column — it only holds a UI icon
+                // (★/☆/🔒/?), not meaningful data outside the page.
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10,11,12] },
+                filename: function () {
+                    // Reflects whatever's actually loaded/filtered right now
+                    // (a single race, or a name search) instead of a static
+                    // page title that can go stale after client-side navigation.
+                    const rows = table.rows({ search: "applied" }).data().toArray();
+                    const clean = s => (s || "").replace(/[\\/:*?"<>|]/g, "").trim();
+
+                    // e.g. "2026-07-09 1432" — keeps repeat exports of the
+                    // same view from overwriting each other.
+                    const now = new Date();
+                    const pad = n => String(n).padStart(2, "0");
+                    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}${pad(now.getMinutes())}`;
+
+                    let base = "OceanSwimmer Results";
+                    if (rows.length > 0) {
+                        const raceIds = new Set(rows.map(r => r.raceId).filter(id => id != null));
+                        if (raceIds.size === 1) {
+                            base = clean(rows[0].raceName) || base;
+                        } else {
+                            const first = rows[0];
+                            const sameName = rows.every(r =>
+                                (r.forename || "") === first.forename &&
+                                (r.surname  || "") === first.surname);
+                            if (sameName && (first.forename || first.surname)) {
+                                base = clean(`${first.forename || ""} ${first.surname || ""} Results`);
+                            }
+                        }
+                    }
+
+                    return `${base} ${timestamp}`;
+                }
+            }],
+            language: {
+                search: "Find in Dataset:"
+            },
             order: [[1, "desc"], [8, "asc"]],
             columnDefs: [
                 { targets: [4, 5, 6, 7, 8, 9, 13], className: "dt-center" }
@@ -852,6 +903,13 @@
                 if (data._nearMatch) $(row).addClass('near-match-row');
             }
         });
+
+        // Relocate the auto-generated CSV button from above the table onto
+        // the result-count row (right-aligned) within the Race Results tab —
+        // it only applies to whatever race table is currently shown, so it
+        // stays scoped to that tab rather than sitting in the global search
+        // row above the tabs.
+        table.buttons().container().appendTo('#csvButtonContainer');
 
 
         // ── Auth ─────────────────────────────────────────────────────
@@ -880,6 +938,7 @@
                 if (res.ok) {
                     const swims = await res.json();
                     claimedSwimIds = new Set(swims.map(s => s.oceanswimsid));
+                    claimedRaceIds = new Set(swims.map(s => s.raceid));
                 }
             } catch (e) { /* ignore */ }
         }
@@ -905,6 +964,7 @@
             await fetch('/auth/logout', { method: 'POST' });
             currentUser    = null;
             claimedSwimIds = new Set();
+            claimedRaceIds = new Set();
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             closeBothPanels();
             renderAuthBar();
@@ -920,6 +980,12 @@
             const claimed = claimedSwimIds.has(id);
             const method  = claimed ? 'DELETE' : 'POST';
 
+            // Server allows at most one claimed swim per race, so we can
+            // safely add/remove this row's raceId from claimedRaceIds here
+            // without needing to re-check other rows.
+            const rowData = table.row(btn.closest('tr')).data();
+            const rowRaceId = rowData?.raceId;
+
             btn.prop('disabled', true);
 
             try {
@@ -927,9 +993,11 @@
                 if (res.ok) {
                     if (claimed) {
                         claimedSwimIds.delete(id);
+                        if (rowRaceId != null) claimedRaceIds.delete(rowRaceId);
                         btn.removeClass('claimed').html('☆').attr('title', 'Claim this swim');
                     } else {
                         claimedSwimIds.add(id);
+                        if (rowRaceId != null) claimedRaceIds.add(rowRaceId);
                         btn.addClass('claimed').html('★').attr('title', 'Remove claim');
                     }
                     updateClaimAllBtn();
@@ -952,19 +1020,40 @@
             const msg = document.getElementById('claimAllMsg');
             if (!currentUser) { btn.style.display = 'none'; return; }
 
-            const allIds = table.rows().data().toArray()
-                .map(r => r.oceanswimsId)
-                .filter(Boolean);
+            const rows = table.rows().data().toArray();
 
-            const unclaimedCount = allIds.filter(id => !claimedSwimIds.has(id)).length;
+            // Only ever offer to claim rows that are plausibly the user's
+            // own — never someone else's, whether that's a full race's
+            // entire field (everyone, not just them) or another swimmer's
+            // name-search results. "Claim All (344)" on a race they didn't
+            // even swim is exactly the bug this guards against. If the user
+            // has no registered name yet (before their very first claim) we
+            // can't tell whose rows are theirs, so fall back to allowing
+            // all — that's what lets a first-time user claim their own
+            // result via name search.
+            const hasRegisteredName = !!(currentUser.swimmerForename && currentUser.swimmerSurname);
+            const ownRows = hasRegisteredName
+                ? rows.filter(r =>
+                    (r.forename || '').toLowerCase() === currentUser.swimmerForename.toLowerCase() &&
+                    (r.surname  || '').toLowerCase() === currentUser.swimmerSurname.toLowerCase())
+                : rows;
 
-            if (allIds.length === 0) {
+            const ownIds = ownRows.map(r => r.oceanswimsId).filter(Boolean);
+            const unclaimedCount = ownIds.filter(id => !claimedSwimIds.has(id)).length;
+
+            const raceIds = new Set(rows.map(r => r.raceId).filter(id => id != null));
+            const isSingleRaceView = raceIds.size === 1;
+
+            if (ownIds.length === 0) {
+                // Nothing in this view looks like the user's own swim —
+                // no bulk action to offer. Individual rows (e.g. a
+                // near-match "?") are still claimable via the Claim column.
                 btn.style.display = 'none';
                 msg.style.display = 'none';
             } else if (unclaimedCount === 0) {
                 btn.style.display = 'none';
                 msg.style.display = 'inline';
-                msg.textContent   = '★ All swims claimed';
+                msg.textContent   = isSingleRaceView ? '★ Result claimed' : '★ All swims claimed';
             } else {
                 btn.style.display  = 'inline';
                 btn.textContent    = `★ Claim All (${unclaimedCount})`;
@@ -976,8 +1065,17 @@
             const btn = document.getElementById('claimAllBtn');
             const msg = document.getElementById('claimAllMsg');
 
-            // All unclaimed IDs from current table data
-            const ids = table.rows().data().toArray()
+            // Unclaimed IDs belonging to the user's own rows only — mirrors
+            // the filtering in updateClaimAllBtn() so the button never
+            // submits (or implies) claiming someone else's swims.
+            const rows = table.rows().data().toArray();
+            const hasRegisteredName = !!(currentUser?.swimmerForename && currentUser?.swimmerSurname);
+            const ownRows = hasRegisteredName
+                ? rows.filter(r =>
+                    (r.forename || '').toLowerCase() === currentUser.swimmerForename.toLowerCase() &&
+                    (r.surname  || '').toLowerCase() === currentUser.swimmerSurname.toLowerCase())
+                : rows;
+            const ids = ownRows
                 .map(r => r.oceanswimsId)
                 .filter(id => id && !claimedSwimIds.has(id));
 
@@ -1001,6 +1099,7 @@
                     if (swimsRes.ok) {
                         const swims = await swimsRes.json();
                         claimedSwimIds = new Set(swims.map(s => s.oceanswimsid));
+                        claimedRaceIds = new Set(swims.map(s => s.raceid));
                     }
 
                     table.draw(false);
@@ -1179,8 +1278,14 @@
             fetch(`${API_BASE}?${params.toString()}`)
                 .then(res => res.json())
                 .then(json => {
+                    // Remove SSR content only after real data has loaded — ensures
+                    // Googlebot's JS renderer always sees content, not a blank table.
+                    document.getElementById('ssr-race-results')?.remove();
+                    const raceName = json.results[0]?.raceName || "Race";
+                    const dateStr  = formatRaceDate(json.results[0]);
                     document.getElementById("resultCount").innerText =
-                        `Results for ${category} (${json.count})`;
+                        `${dateStr ? dateStr + " - " : ""}${raceName} — ${category} (${json.count})`;
+                    updateRaceHighlight(json.results[0]);
                     table.clear();
                     table.search("");
                     table.rows.add(json.results);
@@ -1188,6 +1293,37 @@
                     updateClaimAllBtn();
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 });
+        }
+
+        // Refreshes the winner-highlight line above the results table.
+        // Called on initial race load and again whenever a category/gender
+        // filter changes, so the highlighted swimmer always matches what's
+        // currently shown (falls back to clearing it if there's no data).
+        function updateRaceHighlight(topRow) {
+            const el = document.getElementById("raceHighlight");
+            if (!el) return;
+            if (topRow && topRow.fullName) {
+                el.innerText = `🏆 ${topRow.fullName} — ${topRow.raceTime ?? ''}`;
+            } else {
+                el.innerText = "";
+            }
+        }
+
+        // Formats a result row's race date for display (e.g. "21 Jun 2026").
+        // Used to prefix the bold race heading — merged in rather than shown
+        // as its own line.
+        function formatRaceDate(topRow) {
+            if (!topRow || !topRow.raceDate) return "";
+            return new Date(topRow.raceDate).toLocaleDateString("en-GB", {
+                day: "2-digit", month: "short", year: "numeric"
+            });
+        }
+
+        // Clears the winner-highlight line. Used whenever the view switches
+        // to something that spans multiple races (name search) so a stale
+        // race's info doesn't linger above the table.
+        function clearRaceHeader() {
+            updateRaceHighlight(null);
         }
 
         async function runSearch(forename, surname) {
@@ -1199,6 +1335,10 @@
             const res  = await fetch(`${API_BASE}?${params.toString()}`);
             const json = await res.json();
 
+            // A name search spans many races, so the single-race date/winner
+            // highlight from a previous race view no longer applies — clear it.
+            document.getElementById('ssr-race-results')?.remove();
+            clearRaceHeader();
             document.getElementById("resultCount").innerText = `${json.count} results returned`;
 
             table.clear();
@@ -1260,8 +1400,11 @@
                     // Remove SSR content only after real data has loaded — ensures
                     // Googlebot's JS renderer always sees content, not a blank table.
                     document.getElementById('ssr-race-results')?.remove();
+                    const raceName = json.results[0]?.raceName || raceDescription || "Selected race";
+                    const dateStr  = formatRaceDate(json.results[0]);
                     document.getElementById("resultCount").innerText =
-                        `Selected race — ${json.count} results`;
+                        `${dateStr ? dateStr + " - " : ""}${raceName} — ${json.count} results`;
+                    updateRaceHighlight(json.results[0]);
                     table.clear();
                     table.search("");
                     table.rows.add(json.results);
@@ -1275,7 +1418,15 @@
 
         $("#searchForm").on("submit", (e) => {
             e.preventDefault();
+            showTab("results");   // search lives on the Race Results tab — jump there so the results are actually visible
             runSearch($("#forename").val(), $("#surname").val());
+        });
+
+        // Just empties the two text boxes — doesn't re-run a search or
+        // touch whatever results are currently displayed.
+        $("#clearSearchBtn").on("click", () => {
+            $("#forename").val("");
+            $("#surname").val("");
         });
 
         window.addEventListener("popstate", function () {
@@ -1328,11 +1479,14 @@
             );
             if (!confirmed) return;
 
+            const rowRaceId = table.row($(this).closest('tr')).data()?.raceId;
+
             $(this).prop('disabled', true);
             try {
                 const res = await fetch(`/swims/${id}/claim-manual`, { method: 'POST' });
                 if (res.ok) {
                     claimedSwimIds.add(id);
+                    if (rowRaceId != null) claimedRaceIds.add(rowRaceId);
                     table.draw(false);
                     updateClaimAllBtn();
                 } else if (res.status === 409) {
@@ -1618,6 +1772,7 @@
                     if (swimsRes.ok) {
                         const swims = await swimsRes.json();
                         claimedSwimIds = new Set(swims.map(s => s.oceanswimsid));
+                        claimedRaceIds = new Set(swims.map(s => s.raceid));
                     }
                     mySwimsPanelLoaded = false;
                     table.draw(false);
@@ -1638,6 +1793,8 @@
                 if (!ok) return;
             }
 
+            const rowRaceId = swimsToClaimData.find(r => r.oceanswimsId === id)?.raceId;
+
             $(this).prop('disabled', true);
             const endpoint = isNear ? `/swims/${id}/claim-manual` : `/swims/${id}/claim`;
 
@@ -1645,6 +1802,7 @@
                 const res = await fetch(endpoint, { method: 'POST' });
                 if (res.ok) {
                     claimedSwimIds.add(id);
+                    if (rowRaceId != null) claimedRaceIds.add(rowRaceId);
                     mySwimsPanelLoaded = false;
                     table.draw(false);
                     updateClaimAllBtn();
