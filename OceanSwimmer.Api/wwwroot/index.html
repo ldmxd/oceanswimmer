@@ -1021,28 +1021,36 @@
             if (!currentUser) { btn.style.display = 'none'; return; }
 
             const rows = table.rows().data().toArray();
+            const raceIds = new Set(rows.map(r => r.raceId).filter(id => id != null));
+            const isSingleRaceView = raceIds.size === 1;
 
             // Only ever offer to claim rows that are plausibly the user's
             // own — never someone else's, whether that's a full race's
             // entire field (everyone, not just them) or another swimmer's
-            // name-search results. "Claim All (344)" on a race they didn't
-            // even swim is exactly the bug this guards against. If the user
-            // has no registered name yet (before their very first claim) we
-            // can't tell whose rows are theirs, so fall back to allowing
-            // all — that's what lets a first-time user claim their own
-            // result via name search.
+            // name-search results. "Claim All (1305)" on a race they didn't
+            // even swim is exactly the bug this guards against.
             const hasRegisteredName = !!(currentUser.swimmerForename && currentUser.swimmerSurname);
-            const ownRows = hasRegisteredName
-                ? rows.filter(r =>
+            let ownRows;
+            if (hasRegisteredName) {
+                ownRows = rows.filter(r =>
                     (r.forename || '').toLowerCase() === currentUser.swimmerForename.toLowerCase() &&
-                    (r.surname  || '').toLowerCase() === currentUser.swimmerSurname.toLowerCase())
-                : rows;
+                    (r.surname  || '').toLowerCase() === currentUser.swimmerSurname.toLowerCase());
+            } else if (isSingleRaceView) {
+                // A full race listing and we don't yet know the user's own
+                // name — we can't tell whether any row is theirs, so don't
+                // invite claiming the whole field. They can find themselves
+                // via name search instead (see the else branch below).
+                ownRows = [];
+            } else {
+                // Multi-race view = a name search, so every row already
+                // matches whatever name was searched. Before the user has a
+                // registered name (i.e. this is their very first claim) we
+                // allow it — this is what lets a first-time user self-claim.
+                ownRows = rows;
+            }
 
             const ownIds = ownRows.map(r => r.oceanswimsId).filter(Boolean);
             const unclaimedCount = ownIds.filter(id => !claimedSwimIds.has(id)).length;
-
-            const raceIds = new Set(rows.map(r => r.raceId).filter(id => id != null));
-            const isSingleRaceView = raceIds.size === 1;
 
             if (ownIds.length === 0) {
                 // Nothing in this view looks like the user's own swim —
@@ -1066,15 +1074,22 @@
             const msg = document.getElementById('claimAllMsg');
 
             // Unclaimed IDs belonging to the user's own rows only — mirrors
-            // the filtering in updateClaimAllBtn() so the button never
-            // submits (or implies) claiming someone else's swims.
+            // the filtering in updateClaimAllBtn() so this never submits
+            // (or implies) claiming someone else's swims.
             const rows = table.rows().data().toArray();
+            const raceIds = new Set(rows.map(r => r.raceId).filter(id => id != null));
+            const isSingleRaceView = raceIds.size === 1;
             const hasRegisteredName = !!(currentUser?.swimmerForename && currentUser?.swimmerSurname);
-            const ownRows = hasRegisteredName
-                ? rows.filter(r =>
+            let ownRows;
+            if (hasRegisteredName) {
+                ownRows = rows.filter(r =>
                     (r.forename || '').toLowerCase() === currentUser.swimmerForename.toLowerCase() &&
-                    (r.surname  || '').toLowerCase() === currentUser.swimmerSurname.toLowerCase())
-                : rows;
+                    (r.surname  || '').toLowerCase() === currentUser.swimmerSurname.toLowerCase());
+            } else if (isSingleRaceView) {
+                ownRows = [];
+            } else {
+                ownRows = rows;
+            }
             const ids = ownRows
                 .map(r => r.oceanswimsId)
                 .filter(id => id && !claimedSwimIds.has(id));
