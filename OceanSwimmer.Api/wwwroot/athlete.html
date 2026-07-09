@@ -320,7 +320,7 @@
 <div id="emptyState" style="display:none">
     <h2>No swims claimed yet</h2>
     <p>Search for your name, then use the ☆ buttons or "Claim All" to add your results here.</p>
-    <a href="/" class="btn-primary">Search for my results</a>
+    <a href="/" id="searchMyResultsLink" class="btn-primary">Search for my results</a>
 </div>
 
 <!-- Main athlete content -->
@@ -420,6 +420,36 @@
         } catch { swims = []; }
 
         if (!swims || swims.length === 0) {
+            // "Search for my results" used to just link to the homepage
+            // with no name filled in, so it never actually found anything.
+            // Prefer the registered swimmer name (set once they've claimed
+            // a result); before that exists, fall back to their OAuth
+            // display name as a best guess — that's available immediately
+            // at signup. If neither is usable, fall back to a plain link.
+            const link = document.getElementById('searchMyResultsLink');
+            if (link) {
+                let forename = currentUser?.swimmerForename;
+                let surname  = currentUser?.swimmerSurname;
+
+                if ((!forename || !surname) && currentUser?.name) {
+                    const parts = currentUser.name.trim().split(/\s+/);
+                    if (parts.length >= 2) {
+                        forename = forename || parts[0];
+                        surname  = surname  || parts.slice(1).join(' ');
+                    }
+                }
+
+                if (forename && surname) {
+                    const params = new URLSearchParams({ forename, surname });
+                    link.href = `/?${params.toString()}`;
+                } else {
+                    // No name anywhere yet (e.g. an email/password account
+                    // that's never claimed a result) — nothing to search
+                    // with, so at least land them with the search box
+                    // focused and ready to type instead of a dead page.
+                    link.href = '/?focusSearch=1';
+                }
+            }
             document.getElementById('emptyState').style.display = 'block';
             return;
         }

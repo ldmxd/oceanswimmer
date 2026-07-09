@@ -709,6 +709,14 @@
                 searchByName(forename, surname);
             } else {
                 loadRacesAndDefault();
+                // Arrived from a link that couldn't pre-fill a name (e.g.
+                // the athlete page's "Search for my results" for an
+                // account with no name on file yet) — put the cursor
+                // straight in the Forename box instead of leaving them to
+                // hunt for it.
+                if (params.get("focusSearch")) {
+                    document.getElementById("forename")?.focus();
+                }
             }
         }
 
