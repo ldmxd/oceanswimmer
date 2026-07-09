@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Rivalry – OceanSwimmer</title>
+    <meta name="description" content="Compare your ocean swim results head-to-head against another swimmer, race by race." />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Rivalry – OceanSwimmer" />
+    <meta property="og:description" content="Compare your ocean swim results head-to-head against another swimmer, race by race." />
+    <meta property="og:image" content="https://oceanswimmer.com.au/images/og-image.png" />
+    <meta property="og:url" content="https://oceanswimmer.com.au/rivalry.html" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <meta name="robots" content="noindex, follow" />
+    <link rel="canonical" href="https://oceanswimmer.com.au/rivalry.html" />
+
+    <link rel="icon" href="/images/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
+
+    <!-- Google Font for the site blurb -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+
+    <!-- Chart.js — same version already used on the athlete trend chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f9fafb;
+            color: #222;
+        }
+
+        /* ── Site header band ───────────────────────────────────────── */
+        #site-header {
+            margin: -2rem -2rem 1.5rem;
+            width: calc(100% + 4rem);
+            display: block;
+            line-height: 0;
+        }
+
+        #site-header img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .page-header .back-link {
+            margin-left: auto;
+            font-size: 14px;
+            color: #0066cc;
+        }
+
+        .auth-name {
+            font-size: 14px;
+            color: #555;
+            margin-left: 8px;
+        }
+
+        a { color: #0066cc; }
+
+        h1 {
+            font-size: 1.4rem;
+            margin: 0 0 4px;
+        }
+
+        .subtitle {
+            color: #777;
+            font-size: 14px;
+            margin: 0 0 1.5rem;
+        }
+
+        /* ── Sections / cards (reused from athlete page) ──────────── */
+        .section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+
+        .section h2 {
+            font-size: 1.1rem;
+            margin: 0 0 1rem 0;
+            color: #333;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+
+        .verdict-banner {
+            background: linear-gradient(135deg, #eef4ff, #f5f0ff);
+            border: 1px solid #d8e3f8;
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1a1a2e;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 18px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .card .label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+
+        .card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            line-height: 1.1;
+        }
+
+        .card .sub {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        /* ── Search form ─────────────────────────────────────────── */
+        .rivalry-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .rivalry-form input {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .rivalry-form button {
+            padding: 8px 18px;
+            background: #0066cc;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .rivalry-form button:hover { background: #0052a3; }
+
+        /* ── Tables ──────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 8px 10px;
+            background: #f3f4f6;
+            color: #555;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 7px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafafa; }
+
+        .win  { color: #0a7a2f; font-weight: 600; }
+        .loss { color: #b3261e; }
+        .tie  { color: #888; }
+
+        .warning-banner {
+            background: #fff8e6;
+            border: 1px solid #f0d58c;
+            color: #7a5b00;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            margin-bottom: 1rem;
+        }
+
+        .empty-note {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .rival-chip.active {
+            background: #0066cc !important;
+            color: #fff;
+        }
+
+        .rival-chip.active button {
+            color: #cfe0f7 !important;
+        }
+
+        @media (max-width: 700px) {
+            body { padding: 1rem; }
+            .summary-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Site header — responsive banner -->
+<div id="site-header">
+    <a href="/">
+        <picture>
+            <source media="(max-width: 479px)"  srcset="/images/Stacked.jpg" />
+            <source media="(max-width: 767px)"  srcset="/images/landscape.jpg" />
+            <img src="/images/Desktop.jpg" alt="Ocean Swimmer" />
+        </picture>
+    </a>
+</div>
+
+<div class="page-header">
+    <span style="font-size:1.4rem; font-weight:700; color:#002a5a; font-family:'Dancing Script', cursive;">Your personal spreadsheet for ocean swimming results.</span>
+    <span id="authName" class="auth-name"></span>
+    <a href="/athlete.html" class="back-link" style="margin-left:auto;">My Results</a>
+    <a href="/account.html" class="back-link" style="margin-left:12px;">Account</a>
+    <a href="/" class="back-link" style="margin-left:12px;">← Back to search</a>
+</div>
+
+<h1 style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+    <span style="font-size:0.9rem; font-weight:normal; color:#777;">Compare your results vs other swimmers.</span>
+    <span>🥊 Rivalry</span>
+</h1>
+
+<!-- Rival search -->
+<div class="section">
+    <h2>Find your rival</h2>
+    <form class="rivalry-form" id="rivalForm">
+        <input type="text" id="rivalForename" placeholder="Forename" required />
+        <input type="text" id="rivalSurname"  placeholder="Surname"  required />
+        <button type="submit">Find Swimmer</button>
+    </form>
+    <div id="savedRivalsWrap" style="display:none; margin-top:14px;">
+        <div style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">Saved rivals</div>
+        <div id="savedRivalsList" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+    </div>
+    <p class="empty-note" id="myResultsNote" style="margin-top:12px; display:none;">
+        You need at least one claimed result before you can compare — head to
+        <a href="/athlete.html">My Results</a> and claim a swim first.
+    </p>
+</div>
+
+<!-- Review / disambiguation -->
+<div class="section" id="reviewSection" style="display:none;">
+    <h2 style="display:flex; align-items:center; justify-content:space-between;">
+        <span onclick="toggleReviewSection()" style="cursor:pointer; flex:1;">Is this all the same person?</span>
+        <button type="button" id="saveRivalBtn" onclick="saveCurrentRival(event)" style="margin-right:10px; padding:4px 12px; background:#fff; border:1px solid #ccc; color:#555; border-radius:14px; font-size:12px; cursor:pointer; text-transform:none; letter-spacing:normal; font-weight:normal;">☆ Save rival</button>
+        <span id="reviewToggleIcon" onclick="toggleReviewSection()" style="cursor:pointer; font-size:12px; color:#888; text-transform:none; letter-spacing:normal; font-weight:normal;">▾ Hide</span>
+    </h2>
+    <div id="reviewContent">
+        <div id="genderWarning" class="warning-banner" style="display:none;">
+            ⚠️ These results include both male and female entries under this name —
+            that's a strong sign there's more than one swimmer called this. Untick
+            anything below that isn't actually your rival before comparing.
+        </div>
+        <p class="empty-note">Every result matching this name is listed below, checked by default. Untick any race that isn't really them.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Name</th>
+                    <th>Race</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Gender</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody id="reviewBody"></tbody>
+        </table>
+        <button id="compareBtn" onclick="revealComparison()" style="margin-top:14px; padding:8px 18px; background:#0066cc; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer;">Compare</button>
+    </div>
+    <div id="reviewSummaryLine" style="display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <p class="empty-note" id="reviewSummaryText" style="margin:0;"></p>
+        <button type="button" id="reviewSummaryCompareBtn" onclick="revealComparison()" style="display:none; padding:6px 16px; background:#0066cc; color:#fff; border:none; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap;">Compare</button>
+    </div>
+</div>
+
+<!-- VS heading -->
+<div id="vsHeading" style="display:none; text-align:center; font-size:1.3rem; font-weight:700; color:#1a1a2e; margin-bottom:10px;">
+    You <span style="color:#999; font-weight:400;">vs</span> <span id="vsRivalName"></span>
+</div>
+
+<!-- Verdict -->
+<div id="verdictBanner" class="verdict-banner" style="display:none;"></div>
+
+<!-- Summary -->
+<div class="summary-grid" id="summaryCards" style="display:none;"></div>
+
+<!-- Margin chart -->
+<div class="section" id="chartSection" style="display:none;">
+    <h2>Margin Over Time</h2>
+    <canvas id="marginChart" height="90"></canvas>
+</div>
+
+<!-- Head-to-head table -->
+<div class="section" id="comparisonSection" style="display:none;">
+    <h2 id="comparisonTitle">Head-to-head</h2>
+    <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
+        <span style="display:flex; gap:8px; align-items:center;">
+            <label for="canonicalFilterSelect" style="font-size:13px; color:#666;">Race series:</label>
+            <select id="canonicalFilterSelect" onchange="setCanonicalFilter(this.value)" style="padding:6px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
+                <option value="">All race series</option>
+            </select>
+        </span>
+        <span style="display:flex; gap:8px; align-items:center;">
+            <label for="seasonFilterSelect" style="font-size:13px; color:#666;">Season:</label>
+            <select id="seasonFilterSelect" onchange="setSeasonFilter(this.value)" style="padding:6px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
+                <option value="">All seasons</option>
+            </select>
+        </span>
+    </div>
+    <table>
+        <thead id="comparisonHead">
+            <tr>
+                <th>Race</th>
+                <th>Date</th>
+                <th>Your Time</th>
+                <th>Their Time</th>
+                <th>Margin</th>
+                <th>Winner</th>
+            </tr>
+        </thead>
+        <tbody id="comparisonBody"></tbody>
+    </table>
+    <p class="empty-note" id="noSharedRacesNote" style="display:none; margin-top:12px;">
+        No shared races found between you and this name — you haven't raced
+        the same event on the same day yet.
+    </p>
+</div>
+
+<script>
+    // ── State ────────────────────────────────────────────────────────
+    let currentUser  = null;
+    let mySwims      = [];   // normalized, from /athlete/swims (my claimed results)
+    let rivalRows    = [];   // normalized, from /swims/search (name-matched candidates)
+    let excludedIds  = new Set(); // oceanswimsId values the user has unticked
+    let comparisonRevealed = false; // true once "Compare" has been clicked for the current search
+    let canonicalFilter = ''; // '' = no filter; otherwise a CanonicalRaceName to narrow the head-to-head table down to
+    let seasonFilter = ''; // '' = no filter; otherwise a calendar year (as a string) to narrow the head-to-head table down to
+    let reviewCollapsed = false; // true once the disambiguation box has been confirmed and tucked away
+    let savedRivals = []; // [{ rivalId, forename, surname, createdAt }] from /rivals
+    let currentRivalId = null; // rivalId matching the current forename/surname search, if any
+    let marginChart = null; // Chart.js instance for the margin-over-time chart
+
+    // ── Field normalization ─────────────────────────────────────────
+    // /athlete/swims and /swims/search return the same underlying data but
+    // with different JSON key casing (one is a raw Dapper dynamic result,
+    // the other an explicit camelCase projection) — normalize both to one
+    // shape so the rest of this page doesn't need to care which source a
+    // row came from.
+    function normalizeMine(s) {
+        return {
+            oceanswimsId:      s.oceanswimsid,
+            raceId:            s.raceid,
+            raceName:          s.RaceName,
+            raceDate:          s.RaceDate,
+            raceTime:          s.RaceTime,
+            distance:          s.Distance,
+            category:          s.Category,
+            gender:            s.Gender,
+            overallPosition:   s.OverallPosition,
+            canonicalRaceName: s.CanonicalRaceName
+        };
+    }
+
+    function normalizeRival(r) {
+        return {
+            oceanswimsId:      r.oceanswimsId,
+            raceId:            r.raceId,
+            raceName:          r.raceName,
+            raceDate:          r.raceDate,
+            raceTime:          r.raceTime,
+            distance:          r.distance,
+            category:          r.category,
+            gender:            r.gender,
+            overallPosition:   r.overallPosition,
+            forename:          r.forename,
+            surname:           r.surname,
+            fullName:          r.fullName,
+            canonicalRaceName: r.canonicalRaceName
+        };
+    }
+
+    // Gender values aren't recorded consistently across races/years in the
+    // underlying data ("M" vs "Male" vs "MALE" etc.), so compare on this
+    // instead of the raw string to avoid false "mixed gender" warnings.
+    function normalizeGenderLabel(g) {
+        if (!g) return null;
+        const c = g.trim().charAt(0).toUpperCase();
+        if (c === 'M') return 'Male';
+        if (c === 'F') return 'Female';
+        return g.trim();
+    }
+
+    // "hh:mm:ss[.fff]" → total seconds. Returns null if unparsable.
+    function timeToSeconds(timeStr) {
+        if (!timeStr) return null;
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return null;
+        const h = parseInt(parts[0], 10) || 0;
+        const m = parseInt(parts[1], 10) || 0;
+        const s = parseFloat(parts[2] || '0') || 0;
+        return h * 3600 + m * 60 + s;
+    }
+
+    function formatMargin(seconds) {
+        const abs = Math.abs(Math.round(seconds));
+        const h = Math.floor(abs / 3600);
+        const m = Math.floor((abs % 3600) / 60);
+        const s = abs % 60;
+        if (h > 0) {
+            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function fmtDate(d) {
+        if (!d) return '–';
+        return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────
+    (async function init() {
+        try {
+            const r = await fetch('/auth/me');
+            if (!r.ok) { window.location.href = '/login/google'; return; }
+            currentUser = await r.json();
+            const _authSpan = document.getElementById('authName');
+            const _authText = currentUser.name || currentUser.email || '';
+            _authSpan.innerHTML = '<img src="/images/oceanswimmer-logo.png" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:8px;" />';
+            _authSpan.appendChild(document.createTextNode(_authText));
+        } catch {
+            window.location.href = '/login/google';
+            return;
+        }
+
+        try {
+            const r = await fetch('/athlete/swims');
+            if (r.ok) mySwims = (await r.json()).map(normalizeMine);
+        } catch { mySwims = []; }
+
+        if (mySwims.length === 0) {
+            document.getElementById('myResultsNote').style.display = 'block';
+            document.querySelector('#rivalForm button').disabled = true;
+        }
+
+        loadSavedRivals();
+    })();
+
+    // ── Saved rivals ────────────────────────────────────────────────
+    async function loadSavedRivals() {
+        try {
+            const r = await fetch('/rivals');
+            if (r.ok) savedRivals = await r.json();
+        } catch { savedRivals = []; }
+        renderSavedRivals();
+    }
+
+    function renderSavedRivals() {
+        const wrap = document.getElementById('savedRivalsWrap');
+        const list = document.getElementById('savedRivalsList');
+
+        if (savedRivals.length === 0) {
+            wrap.style.display = 'none';
+            return;
+        }
+
+        wrap.style.display = 'block';
+        list.innerHTML = savedRivals.map(rv => `
+            <span class="rival-chip${rv.rivalId === currentRivalId ? ' active' : ''}" style="display:inline-flex; align-items:center; gap:6px; background:#f3f4f6; border-radius:16px; padding:6px 8px 6px 14px; font-size:13px;">
+                <span style="cursor:pointer;" onclick="compareSavedRival('${rv.forename.replace(/'/g, "\\'")}', '${rv.surname.replace(/'/g, "\\'")}')">${rv.forename} ${rv.surname}</span>
+                <button type="button" onclick="deleteSavedRival(${rv.rivalId}, event)" title="Remove" style="border:none; background:none; color:#999; cursor:pointer; font-size:14px; line-height:1; padding:0 2px;">×</button>
+            </span>
+        `).join('');
+    }
+
+    function compareSavedRival(forename, surname) {
+        document.getElementById('rivalForename').value = forename;
+        document.getElementById('rivalSurname').value  = surname;
+        document.getElementById('rivalForm').requestSubmit();
+    }
+
+    // Prefers the actual confirmed name over whatever partial text was
+    // typed into the search boxes — e.g. searching "Drink" should save as
+    // "Andrew Drinkwater", not "Andrew Drink". Falls back to the typed
+    // text if nothing is currently ticked to derive a name from.
+    function deriveRivalName() {
+        const typedForename = document.getElementById('rivalForename').value.trim();
+        const typedSurname  = document.getElementById('rivalSurname').value.trim();
+
+        const confirmed = rivalRows.filter(r => !excludedIds.has(r.oceanswimsId));
+        if (confirmed.length === 0) return { forename: typedForename, surname: typedSurname };
+
+        const counts = new Map();
+        confirmed.forEach(r => {
+            const key = JSON.stringify([r.forename || '', r.surname || '']);
+            counts.set(key, (counts.get(key) || 0) + 1);
+        });
+        const [topKey] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+        const [topForename, topSurname] = JSON.parse(topKey);
+
+        return (topForename || topSurname)
+            ? { forename: topForename, surname: topSurname }
+            : { forename: typedForename, surname: typedSurname };
+    }
+
+    // Same derivation as deriveRivalName(), just formatted for display in
+    // the "You vs ___" heading.
+    function getRivalDisplayName() {
+        const { forename, surname } = deriveRivalName();
+        return `${forename} ${surname}`.trim() || 'Rival';
+    }
+
+    async function saveCurrentRival(e) {
+        e.stopPropagation();
+        const { forename, surname } = deriveRivalName();
+        if (!forename && !surname) return;
+
+        const btn = document.getElementById('saveRivalBtn');
+        btn.disabled = true;
+
+        try {
+            const r = await fetch('/rivals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ forename, surname, excludedIds: [...excludedIds] })
+            });
+            if (r.ok) {
+                const data = await r.json();
+                currentRivalId = data.rivalId ?? currentRivalId;
+                btn.textContent = '★ Saved';
+                await loadSavedRivals();
+            } else {
+                console.error('Save rival failed:', r.status, await r.text().catch(() => ''));
+                btn.textContent = '⚠ Save failed';
+                setTimeout(() => { btn.textContent = '☆ Save rival'; }, 2500);
+            }
+        } catch (err) {
+            console.error('Save rival failed:', err);
+            btn.textContent = '⚠ Save failed';
+            setTimeout(() => { btn.textContent = '☆ Save rival'; }, 2500);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function deleteSavedRival(rivalId, e) {
+        e.stopPropagation();
+        try {
+            await fetch(`/rivals/${rivalId}`, { method: 'DELETE' });
+        } catch {}
+        await loadSavedRivals();
+    }
+
+    // ── Rival search ─────────────────────────────────────────────────
+    document.getElementById('rivalForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (mySwims.length === 0) return;
+
+        const forename = document.getElementById('rivalForename').value.trim();
+        const surname  = document.getElementById('rivalSurname').value.trim();
+        if (!forename && !surname) return;
+
+        const params = new URLSearchParams({ forename, surname, pageSize: 2000 });
+        const res  = await fetch(`/swims/search?${params.toString()}`);
+        const json = await res.json();
+
+        rivalRows   = (json.results || []).map(normalizeRival);
+        comparisonRevealed = false;
+        canonicalFilter = '';
+        seasonFilter = '';
+
+        // If this name matches a saved rival, restore their previously
+        // confirmed disambiguation choices instead of starting from scratch.
+        const savedMatch = savedRivals.find(rv =>
+            rv.forename.toLowerCase() === forename.toLowerCase() &&
+            rv.surname.toLowerCase()  === surname.toLowerCase());
+        currentRivalId = savedMatch ? savedMatch.rivalId : null;
+        renderSavedRivals(); // reflect the active chip highlight immediately
+
+        if (savedMatch) {
+            try {
+                const exRes = await fetch(`/rivals/${savedMatch.rivalId}/exclusions`);
+                const exIds = exRes.ok ? await exRes.json() : [];
+                excludedIds = new Set(exIds);
+                reviewCollapsed = true; // already confirmed previously — keep it tucked away
+            } catch {
+                excludedIds = new Set();
+                reviewCollapsed = false;
+            }
+        } else {
+            excludedIds = new Set();
+            reviewCollapsed = false;
+        }
+
+        const saveBtn = document.getElementById('saveRivalBtn');
+        if (saveBtn) saveBtn.textContent = savedMatch ? '★ Saved' : '☆ Save rival';
+
+        // Finding a swimmer only shows the review/disambiguation list —
+        // the actual comparison waits for an explicit "Compare" click, so
+        // there's a chance to untick any results that aren't really them
+        // before any numbers are calculated.
+        document.getElementById('summaryCards').style.display = 'none';
+        document.getElementById('comparisonSection').style.display = 'none';
+        renderReview();
+
+        // Already confirmed this rival before — skip straight to the
+        // numbers instead of making them click Compare again.
+        if (savedMatch) revealComparison();
+    });
+
+    function revealComparison() {
+        comparisonRevealed = true;
+        // They've confirmed the list — tuck the disambiguation box away so
+        // it doesn't keep taking up space every time the numbers update.
+        reviewCollapsed = true;
+        updateReviewCollapse();
+        renderComparison();
+    }
+
+    function toggleReviewSection() {
+        reviewCollapsed = !reviewCollapsed;
+        updateReviewCollapse();
+    }
+
+    function updateReviewCollapse() {
+        const content     = document.getElementById('reviewContent');
+        const summary     = document.getElementById('reviewSummaryLine');
+        const summaryText = document.getElementById('reviewSummaryText');
+        const compareBtn  = document.getElementById('reviewSummaryCompareBtn');
+        const icon        = document.getElementById('reviewToggleIcon');
+        if (!content) return;
+
+        if (reviewCollapsed) {
+            content.style.display = 'none';
+            icon.textContent = '▸ Show';
+            const total    = rivalRows.length;
+            const included = total - excludedIds.size;
+            summary.style.display = 'flex';
+            summaryText.textContent = `✓ ${included} of ${total} result${total !== 1 ? 's' : ''} confirmed as this person — click to review again.`;
+            // The Compare button lives inside the collapsible content, so
+            // when collapsed and nothing's been compared yet, surface it
+            // here too — otherwise hiding the box strands you with no way
+            // to actually see the comparison.
+            compareBtn.style.display = comparisonRevealed ? 'none' : 'inline-block';
+        } else {
+            content.style.display = 'block';
+            icon.textContent = '▾ Hide';
+            summary.style.display = 'none';
+        }
+    }
+
+    function setCanonicalFilter(name) {
+        canonicalFilter = name;
+        renderComparison();
+    }
+
+    function setSeasonFilter(year) {
+        seasonFilter = year;
+        renderComparison();
+    }
+
+    // ── Review / disambiguation list ────────────────────────────────
+    function renderReview() {
+        const section = document.getElementById('reviewSection');
+        const body    = document.getElementById('reviewBody');
+        const warning = document.getElementById('genderWarning');
+
+        if (rivalRows.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        updateReviewCollapse();
+
+        const genders = new Set(rivalRows.map(r => normalizeGenderLabel(r.gender)).filter(Boolean));
+        warning.style.display = genders.size > 1 ? 'block' : 'none';
+
+        body.innerHTML = rivalRows.map(r => `
+            <tr>
+                <td><input type="checkbox" data-id="${r.oceanswimsId}" ${excludedIds.has(r.oceanswimsId) ? '' : 'checked'} onchange="toggleRivalRow(${r.oceanswimsId}, this.checked)" /></td>
+                <td>${r.fullName ?? '–'}</td>
+                <td>${r.raceName ?? '–'}</td>
+                <td>${fmtDate(r.raceDate)}</td>
+                <td>${r.category ?? '–'}</td>
+                <td>${r.gender ?? '–'}</td>
+                <td>${r.raceTime ?? '–'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function toggleRivalRow(id, checked) {
+        if (checked) excludedIds.delete(id);
+        else excludedIds.add(id);
+        // Once you've hit "Compare" once, keep the numbers live-updated as
+        // you refine the selection — no need to re-click it every time.
+        if (comparisonRevealed) renderComparison();
+    }
+
+    // ── Comparison ───────────────────────────────────────────────────
+    // Single source of truth: exact race-day matches (same raceId for both
+    // of you). The canonical-race dropdown only ever filters this same
+    // list down to one series — it never recalculates wins/margins using a
+    // different method, so the numbers stay consistent no matter what's
+    // selected.
+    function renderComparison() {
+        const vsHeadingEl  = document.getElementById('vsHeading');
+        const verdictEl    = document.getElementById('verdictBanner');
+        const summaryEl    = document.getElementById('summaryCards');
+        const chartSection = document.getElementById('chartSection');
+        const sectionEl    = document.getElementById('comparisonSection');
+        const headEl       = document.getElementById('comparisonHead');
+        const bodyEl       = document.getElementById('comparisonBody');
+        const noSharedNote = document.getElementById('noSharedRacesNote');
+
+        if (!comparisonRevealed || rivalRows.length === 0) {
+            vsHeadingEl.style.display = 'none';
+            verdictEl.style.display = 'none';
+            summaryEl.style.display = 'none';
+            chartSection.style.display = 'none';
+            sectionEl.style.display = 'none';
+            return;
+        }
+
+        vsHeadingEl.style.display = 'block';
+        document.getElementById('vsRivalName').textContent = getRivalDisplayName();
+        verdictEl.style.display = 'block';
+        summaryEl.style.display = 'grid';
+        sectionEl.style.display = 'block';
+
+        const allRows = buildRaceRows();
+        populateCanonicalFilter(allRows);
+        populateSeasonFilter(allRows);
+
+        const rows = allRows
+            .filter(r => !canonicalFilter || r.canonicalRaceName === canonicalFilter)
+            .filter(r => !seasonFilter || String(seasonOf(r.raceDate)) === seasonFilter);
+
+        const stats = computeStats(rows);
+        renderVerdictBanner(verdictEl, stats);
+        renderSummaryCards(summaryEl, stats);
+        renderMarginChart(chartSection, rows);
+
+        headEl.innerHTML = `
+            <tr>
+                <th>Race</th>
+                <th>Date</th>
+                <th>Your Time</th>
+                <th>Their Time</th>
+                <th>Margin</th>
+                <th>Winner</th>
+            </tr>`;
+
+        if (rows.length === 0) {
+            bodyEl.innerHTML = '';
+            noSharedNote.style.display = 'block';
+            noSharedNote.textContent = (canonicalFilter || seasonFilter)
+                ? `No shared races found${canonicalFilter ? ` in ${canonicalFilter}` : ''}${seasonFilter ? ` for ${seasonFilter}` : ''}.`
+                : "No shared races found between you and this name — you haven't raced the same event on the same day yet.";
+            return;
+        }
+        noSharedNote.style.display = 'none';
+
+        bodyEl.innerHTML = rows.map(s => `
+            <tr>
+                <td>${s.label}</td>
+                <td>${fmtDate(s.raceDate)}</td>
+                <td>${s.race.raceTime ?? '–'}</td>
+                <td>${s.rival.raceTime ?? '–'}</td>
+                <td>${s.marginSecs != null ? formatMargin(s.marginSecs) : '–'}</td>
+                <td>${winnerCell(s.marginSecs)}</td>
+            </tr>
+        `).join('');
+    }
+
+    // Ocean swim seasons run July–June, not the calendar year — e.g. a race
+    // on 4 Dec 2016 belongs to the 2017 season, same convention as the
+    // leaderboard's "By Season" tabs.
+    function seasonOf(d) {
+        if (!d) return null;
+        const date = new Date(d);
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1; // 1–12
+        return month >= 7 ? year + 1 : year;
+    }
+
+    function populateCanonicalFilter(allRows) {
+        const select  = document.getElementById('canonicalFilterSelect');
+        const current = canonicalFilter;
+        const names = [...new Set(allRows.map(r => r.canonicalRaceName).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b));
+
+        select.innerHTML = '<option value="">All race series</option>' +
+            names.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${n}</option>`).join('');
+        select.value = current;
+        // If the previously-selected series no longer appears among the
+        // shared races (e.g. after unticking a result), fall back to "all".
+        if (select.value !== current) canonicalFilter = '';
+    }
+
+    function populateSeasonFilter(allRows) {
+        const select  = document.getElementById('seasonFilterSelect');
+        const current = seasonFilter;
+        const years = [...new Set(allRows.map(r => seasonOf(r.raceDate)).filter(y => y != null))]
+            .sort((a, b) => b - a);
+
+        select.innerHTML = '<option value="">All seasons</option>' +
+            years.map(y => `<option value="${y}">${y}</option>`).join('');
+        select.value = current;
+        if (select.value !== current) seasonFilter = '';
+    }
+
+    function winnerCell(marginSecs) {
+        if (marginSecs == null) return '–';
+        if (marginSecs > 0) return '<span class="win">You</span>';
+        if (marginSecs < 0) return '<span class="loss">Them</span>';
+        return '<span class="tie">Tie</span>';
+    }
+
+    // Matches by exact raceId (raced the same day) — this is the single
+    // source of truth for the whole comparison; the canonical filter above
+    // only narrows this list down, it never recalculates differently.
+    function buildRaceRows() {
+        const myByRace = new Map(mySwims.map(s => [s.raceId, s]));
+
+        return rivalRows
+            .filter(r => !excludedIds.has(r.oceanswimsId))
+            .filter(r => myByRace.has(r.raceId))
+            .map(r => {
+                const mine = myByRace.get(r.raceId);
+                const mySecs    = timeToSeconds(mine.raceTime);
+                const theirSecs = timeToSeconds(r.raceTime);
+                const marginSecs = (mySecs != null && theirSecs != null) ? (theirSecs - mySecs) : null;
+                return {
+                    label: mine.raceName ?? '–',
+                    raceDate: mine.raceDate,
+                    canonicalRaceName: mine.canonicalRaceName || r.canonicalRaceName || null,
+                    race: mine, rival: r, mySecs, theirSecs, marginSecs
+                };
+            })
+            // Most recent race first
+            .sort((a, b) => new Date(b.raceDate) - new Date(a.raceDate));
+    }
+
+    // Shared numbers behind both the summary cards and the verdict banner,
+    // so they can never disagree with each other.
+    function median(nums) {
+        if (nums.length === 0) return null;
+        const sorted = [...nums].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
+    function computeStats(rows) {
+        const comparable = rows.filter(s => s.marginSecs != null);
+        const yourWins  = comparable.filter(s => s.marginSecs > 0).length;
+        const theirWins = comparable.filter(s => s.marginSecs < 0).length;
+        const ties      = comparable.filter(s => s.marginSecs === 0).length;
+        const decided   = yourWins + theirWins;
+        const winShare  = decided > 0 ? yourWins / decided : null;
+        const totalMargin = comparable.length
+            ? comparable.reduce((sum, s) => sum + s.marginSecs, 0)
+            : null;
+        const avgMargin = comparable.length
+            ? totalMargin / comparable.length
+            : null;
+        const medianMargin = comparable.length
+            ? median(comparable.map(s => s.marginSecs))
+            : null;
+
+        return {
+            racesTogether: rows.length,
+            comparableCount: comparable.length,
+            yourWins, theirWins, ties, decided, winShare,
+            totalMargin, avgMargin, medianMargin
+        };
+    }
+
+    function renderSummaryCards(summaryEl, stats) {
+        const { racesTogether, yourWins, theirWins, ties, avgMargin, totalMargin } = stats;
+
+        summaryEl.innerHTML = `
+            <div class="card">
+                <div class="label">Races together</div>
+                <div class="value">${racesTogether}</div>
+            </div>
+            <div class="card">
+                <div class="label">Your wins</div>
+                <div class="value">${yourWins}</div>
+            </div>
+            <div class="card">
+                <div class="label">Ties</div>
+                <div class="value">${ties}</div>
+            </div>
+            <div class="card">
+                <div class="label">Their wins</div>
+                <div class="value">${theirWins}</div>
+            </div>
+            <div class="card">
+                <div class="label">Average margin</div>
+                <div class="value">${avgMargin != null ? formatMargin(avgMargin) : '–'}</div>
+                <div class="sub">${avgMargin == null ? '' : (avgMargin > 0 ? "you're faster, on average" : avgMargin < 0 ? "they're faster, on average" : 'dead even')}</div>
+            </div>
+            <div class="card">
+                <div class="label">Total time difference</div>
+                <div class="value">${totalMargin != null ? formatMargin(totalMargin) : '–'}</div>
+                <div class="sub">${totalMargin == null ? '' : (totalMargin > 0 ? "you're faster, overall" : totalMargin < 0 ? "they're faster, overall" : 'dead even')}</div>
+            </div>
+        `;
+    }
+
+    // One bar per shared race, positive (green) = you were faster that day,
+    // negative (red) = they were, height = how big the gap was. A running
+    // cumulative-margin line rides on top (its own axis, since the total
+    // dwarfs any single race) so you can see who's "in front" overall and
+    // when the lead has changed hands.
+    function renderMarginChart(sectionEl, rows) {
+        const canvas = document.getElementById('marginChart');
+
+        const pts = rows
+            .filter(s => s.marginSecs != null && s.raceDate)
+            .map(s => ({
+                raceDate: new Date(s.raceDate),
+                y: parseFloat((s.marginSecs / 60).toFixed(2)),
+                label: s.label,
+                marginSecs: s.marginSecs
+            }))
+            .sort((a, b) => a.raceDate - b.raceDate)
+            .map((p, i) => ({ ...p, x: i + 1 }));
+
+        if (pts.length === 0) {
+            sectionEl.style.display = 'none';
+            if (marginChart) { marginChart.destroy(); marginChart = null; }
+            return;
+        }
+        sectionEl.style.display = 'block';
+
+        const colors = pts.map(p =>
+            p.marginSecs > 0 ? '#0a7a2f' : p.marginSecs < 0 ? '#b3261e' : '#999');
+
+        let running = 0;
+        const cumPts = pts.map(p => {
+            running += p.marginSecs;
+            return { x: p.x, y: parseFloat((running / 60).toFixed(2)), cumulativeSecs: running };
+        });
+
+        // The bars and the line sit on separate axes (the running total
+        // dwarfs any single race), and Chart.js scales each axis to its
+        // own data independently — so their zero-lines don't line up by
+        // default, which makes a negative line value look like it's
+        // "above zero" relative to the bars. Forcing both axes symmetric
+        // around 0 keeps the zero-lines aligned at the same height.
+        const barMax = Math.max(1, ...pts.map(p => Math.abs(p.y))) * 1.1;
+        const cumMax = Math.max(1, ...cumPts.map(p => Math.abs(p.y))) * 1.1;
+
+        if (marginChart) marginChart.destroy();
+
+        marginChart = new Chart(canvas.getContext('2d'), {
+            data: {
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Margin per race (minutes) — above 0 = you, below = them',
+                        data: pts,
+                        backgroundColor: colors,
+                        yAxisID: 'y',
+                        order: 2
+                    },
+                    {
+                        type: 'line',
+                        label: "Who's in front overall — running total",
+                        data: cumPts,
+                        borderColor: '#0066cc',
+                        backgroundColor: 'transparent',
+                        pointRadius: 0,
+                        borderWidth: 2,
+                        tension: 0,
+                        yAxisID: 'y1',
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: 'Race #' },
+                        ticks: {
+                            stepSize: 1,
+                            precision: 0,
+                            // Race number alone doesn't give any sense of
+                            // time, so surface the year every 10 races (plus
+                            // the very first one) and hide the rest.
+                            callback: (value) => {
+                                if (!Number.isInteger(value) || value < 1) return undefined;
+                                if (value !== 1 && value % 10 !== 0) return undefined;
+                                const p = pts[value - 1];
+                                return p ? `${value} (${p.raceDate.getFullYear()})` : value;
+                            }
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        min: -barMax,
+                        max: barMax,
+                        title: { display: true, text: 'Margin per race (min)' }
+                    },
+                    y1: {
+                        position: 'right',
+                        min: -cumMax,
+                        max: cumMax,
+                        title: { display: true, text: "Running total (min) — above 0 = you're in front" },
+                        grid: { drawOnChartArea: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: true, labels: { boxWidth: 14, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            title: items => {
+                                const p = items[0].raw;
+                                return p.label
+                                    ? `${p.label}${p.raceDate ? ` (${fmtDate(p.raceDate)})` : ''}`
+                                    : `Race ${p.x}`;
+                            },
+                            label: item => {
+                                const p = item.raw;
+                                if (item.dataset.type === 'line') {
+                                    if (p.cumulativeSecs === 0) return "Running total: dead even";
+                                    const who = p.cumulativeSecs > 0 ? "You're" : "They're";
+                                    return `Running total: ${who} in front by ${formatMargin(p.cumulativeSecs)}`;
+                                }
+                                const who = p.marginSecs > 0 ? 'You' : p.marginSecs < 0 ? 'Them' : 'Tie';
+                                return p.marginSecs === 0 ? 'Tie' : `${who} by ${formatMargin(p.marginSecs)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function pick(options) {
+        return options[Math.floor(Math.random() * options.length)];
+    }
+
+    // A humorous one-line verdict on the rivalry. Randomized per tier so it
+    // doesn't feel like a canned label on repeat visits.
+    function buildVerdict(stats) {
+        const { racesTogether, decided, yourWins, theirWins, avgMargin, medianMargin } = stats;
+
+        if (racesTogether === 0) return null;
+
+        if (decided === 0) {
+            return pick([
+                "You've never actually settled this one — every shared race has ended dead level.",
+                "Nothing but ties so far. Someone needs to actually win one of these."
+            ]);
+        }
+
+        if (racesTogether < 3) {
+            return pick([
+                `Too early to call — you've only crossed paths ${racesTogether} time${racesTogether !== 1 ? 's' : ''} so far.`,
+                "Not enough races yet for a verdict. Get back in the water."
+            ]);
+        }
+
+        // Based on the raw win count gap rather than a percentage — "wins
+        // by 10" reads as a real lead whether that's out of 20 races or
+        // 100, whereas a percentage alone can call a 55-45 record "wafer
+        // thin" just because the sample is large.
+        const diff = yourWins - theirWins;
+        const abs  = Math.abs(diff);
+
+        let tier;
+        if (diff === 0) tier = 'level';
+        else if (abs <= 3)  tier = diff > 0 ? 'whisker-you' : 'whisker-them';
+        else if (abs <= 9)  tier = diff > 0 ? 'edge-you'    : 'edge-them';
+        else if (abs <= 19) tier = diff > 0 ? 'top-you'     : 'top-them';
+        else                tier = diff > 0 ? 'crushed-you' : 'crushed-them';
+
+        const lines = {
+            'level': [
+                "Dead level. This rivalry could not be tighter.",
+                "It's a coin flip out there — impossible to call.",
+                "Even-Steven. Neither of you can claim bragging rights yet."
+            ],
+            'whisker-you': [
+                "It's you, by a whisker.",
+                "You're just nosing ahead — barely.",
+                "A wafer-thin lead in your favour."
+            ],
+            'whisker-them': [
+                "It's them, by a whisker.",
+                "They're just nosing ahead — barely.",
+                "A wafer-thin lead in their favour."
+            ],
+            'edge-you': [
+                "You've got the edge, but they're not far behind.",
+                "Slight upper hand — don't get complacent.",
+                "You're ahead, though it's still anyone's rivalry."
+            ],
+            'edge-them': [
+                "They've got the edge, but you're not far behind.",
+                "They hold a slight upper hand for now.",
+                "They're ahead, though it's still anyone's rivalry."
+            ],
+            'top-you': [
+                "You're clearly on top here.",
+                "The scoreboard doesn't lie — this one's yours.",
+                "You've had their measure lately."
+            ],
+            'top-them': [
+                "They're clearly on top here.",
+                "The scoreboard doesn't lie — this one's theirs.",
+                "They've had your measure lately."
+            ],
+            'crushed-you': [
+                "They're crushed. Time to find a new rival.",
+                "Time to retire while you're this far in front.",
+                "This isn't really a rivalry anymore, it's a beatdown."
+            ],
+            'crushed-them': [
+                "You're the one getting crushed here. Ouch.",
+                "This one belongs to them — no contest.",
+                "Maybe it's time to find a gentler hobby."
+            ]
+        };
+
+        let verdict = pick(lines[tier]);
+
+        // Only bolt on a margin comment for tiers that already describe a
+        // clear gap ("top"/"crushed"). For level/whisker/edge tiers the
+        // verdict is explicitly about how close the WIN COUNT is — pairing
+        // that with an average time gap reads as contradictory ("barely
+        // ahead... but 40s faster?"), even when both numbers are technically
+        // true. Skip the extra clause there instead of trying to reconcile it.
+        const dominantTier = tier === 'top-you' || tier === 'top-them' ||
+            tier === 'crushed-you' || tier === 'crushed-them';
+
+        if (dominantTier && avgMargin != null && medianMargin != null) {
+            // The average can still be dragged around by one or two blowout
+            // results. Compare it against the median — if they tell
+            // noticeably different stories, say so explicitly instead of
+            // quoting the average as if every race runs that wide.
+            const sameDirection = (avgMargin >= 0) === (medianMargin >= 0);
+            const skewedByOutliers = Math.abs(avgMargin) >= 30 &&
+                (!sameDirection || Math.abs(avgMargin) - Math.abs(medianMargin) >= 60);
+
+            if (skewedByOutliers) {
+                verdict += ` Your average margin (${formatMargin(avgMargin)}) is being dragged around by a couple of blowout results though — most of these races have actually been much tighter than that.`;
+            } else if (Math.abs(avgMargin) >= 30) {
+                const faster = avgMargin > 0 ? "you're" : "they're";
+                verdict += ` And it's not just wins on the board — ${faster} averaging ${formatMargin(avgMargin)} faster per race.`;
+            }
+        }
+
+        return verdict;
+    }
+
+    function renderVerdictBanner(verdictEl, stats) {
+        const verdict = buildVerdict(stats);
+        if (!verdict) {
+            verdictEl.style.display = 'none';
+            return;
+        }
+        verdictEl.style.display = 'block';
+        verdictEl.textContent = verdict;
+    }
+</script>
+
+</body>
+</html>

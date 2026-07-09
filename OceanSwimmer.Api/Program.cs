@@ -764,6 +764,124 @@ app.MapDelete("/swims/{oceanswimsId}/claim", async (int oceanswimsId, HttpContex
 
 
 // ---------------------------------------------------------------------------
+// RIVALS (saved rivals for the Rivalry page)
+// ⚠️  Requires: auth.Rivals table — see /sql/rivals-table.sql
+// ⚠️  Requires: auth.RivalExclusions table — see /sql/rival-exclusions-table.sql
+// ---------------------------------------------------------------------------
+
+app.MapGet("/rivals", async (HttpContext ctx) =>
+{
+    var userIdStr = ctx.User.FindFirst("userId")?.Value;
+    if (userIdStr == null) return Results.Unauthorized();
+    var userId = int.Parse(userIdStr);
+
+    using var conn = new SqlConnection(connStr);
+    var rivals = await conn.QueryAsync(@"
+        SELECT RivalId, RivalForename, RivalSurname, CreatedAt
+        FROM auth.Rivals
+        WHERE UserId = @userId
+        ORDER BY RivalSurname, RivalForename",
+        new { userId });
+
+    return Results.Ok(rivals.Select(r => new
+    {
+        rivalId   = (int)r.RivalId,
+        forename  = (string)r.RivalForename,
+        surname   = (string)r.RivalSurname,
+        createdAt = (DateTime)r.CreatedAt
+    }));
+});
+
+// Upserts the rival by name, then overwrites their saved disambiguation
+// choices (which oceanswimsIds were unticked as "not really them") with
+// whatever is currently excluded on the page.
+app.MapPost("/rivals", async (SaveRivalRequest req, HttpContext ctx) =>
+{
+    var userIdStr = ctx.User.FindFirst("userId")?.Value;
+    if (userIdStr == null) return Results.Unauthorized();
+    var userId = int.Parse(userIdStr);
+
+    var forename = (req.Forename ?? "").Trim();
+    var surname  = (req.Surname ?? "").Trim();
+    if (forename == "" && surname == "") return Results.BadRequest("Forename or surname required");
+
+    using var conn = new SqlConnection(connStr);
+    await conn.OpenAsync();
+    using var tx = conn.BeginTransaction();
+
+    try
+    {
+        var rivalId = await conn.QuerySingleAsync<int>(@"
+            IF NOT EXISTS (
+                SELECT 1 FROM auth.Rivals
+                WHERE UserId = @userId AND RivalForename = @forename AND RivalSurname = @surname
+            )
+            INSERT INTO auth.Rivals (UserId, RivalForename, RivalSurname, CreatedAt)
+            VALUES (@userId, @forename, @surname, GETDATE());
+
+            SELECT RivalId FROM auth.Rivals
+            WHERE UserId = @userId AND RivalForename = @forename AND RivalSurname = @surname",
+            new { userId, forename, surname }, tx);
+
+        var excludedIds = (req.ExcludedIds ?? new List<int>()).Distinct().ToList();
+        var idsJson = System.Text.Json.JsonSerializer.Serialize(excludedIds);
+
+        await conn.ExecuteAsync(@"
+            DELETE FROM auth.RivalExclusions WHERE RivalId = @rivalId;
+
+            INSERT INTO auth.RivalExclusions (RivalId, OceanSwimsId)
+            SELECT @rivalId, CAST(j.value AS INT)
+            FROM OPENJSON(@idsJson) j",
+            new { rivalId, idsJson }, tx);
+
+        tx.Commit();
+        return Results.Ok(new { rivalId });
+    }
+    catch
+    {
+        tx.Rollback();
+        throw;
+    }
+});
+
+app.MapDelete("/rivals/{id:int}", async (int id, HttpContext ctx) =>
+{
+    var userIdStr = ctx.User.FindFirst("userId")?.Value;
+    if (userIdStr == null) return Results.Unauthorized();
+    var userId = int.Parse(userIdStr);
+
+    using var conn = new SqlConnection(connStr);
+    var rows = await conn.ExecuteAsync(
+        "DELETE FROM auth.Rivals WHERE RivalId = @id AND UserId = @userId",
+        new { id, userId });
+
+    return rows > 0 ? Results.Ok() : Results.NotFound();
+});
+
+// Saved disambiguation choices for a rival — the oceanswimsIds the user
+// previously unticked as "not really them".
+app.MapGet("/rivals/{id:int}/exclusions", async (int id, HttpContext ctx) =>
+{
+    var userIdStr = ctx.User.FindFirst("userId")?.Value;
+    if (userIdStr == null) return Results.Unauthorized();
+    var userId = int.Parse(userIdStr);
+
+    using var conn = new SqlConnection(connStr);
+
+    var owns = await conn.QueryFirstOrDefaultAsync<int?>(
+        "SELECT RivalId FROM auth.Rivals WHERE RivalId = @id AND UserId = @userId",
+        new { id, userId });
+    if (owns == null) return Results.NotFound();
+
+    var ids = await conn.QueryAsync<int>(
+        "SELECT OceanSwimsId FROM auth.RivalExclusions WHERE RivalId = @id",
+        new { id });
+
+    return Results.Ok(ids);
+});
+
+
+// ---------------------------------------------------------------------------
 // ATHLETE PAGE
 // ---------------------------------------------------------------------------
 
@@ -799,7 +917,8 @@ app.MapGet("/athlete/swims", async (HttpContext ctx) =>
             o.CategoryPercentile,
             ar.ClaimedAt,
             ar.IsARace,
-            rt.RaceTypeDescription
+            rt.RaceTypeDescription,
+            r.CanonicalRaceName
         FROM auth.AthleteResults ar
         JOIN dbo.vw_OceanSwims_Search o ON o.oceanswimsid = ar.OceanSwimsId
         LEFT JOIN dbo.Race r ON r.raceid = o.raceid
@@ -994,34 +1113,37 @@ app.MapGet("/swims/search", async (
 
     var cmd = new SqlCommand("""
         SELECT
-            oceanswimsid,
-            raceid,
-            RaceDate,
-            RaceName,
-            Distance,
-            RaceTime,
-            Category,
-            Sex,
-            Forename,
-            Surname,
-            FullName,
-            OverallPosition,
-            OverallCompetitors,
-            OverallPercentile,
-            GenderPosition,
-            GenderCompetitors,
-            GenderPercentile,
-            CategoryPosition,
-            CategoryCompetitors,
-            CategoryPercentile
-        FROM dbo.vw_OceanSwims_Search
+            v.oceanswimsid,
+            v.raceid,
+            v.RaceDate,
+            v.RaceName,
+            v.Distance,
+            v.RaceTime,
+            v.Category,
+            v.Sex,
+            v.Forename,
+            v.Surname,
+            v.FullName,
+            v.OverallPosition,
+            v.OverallCompetitors,
+            v.OverallPercentile,
+            v.GenderPosition,
+            v.GenderCompetitors,
+            v.GenderPercentile,
+            v.CategoryPosition,
+            v.CategoryCompetitors,
+            v.CategoryPercentile,
+            r.CanonicalRaceName
+        FROM dbo.vw_OceanSwims_Search v
+        LEFT JOIN dbo.Race r ON r.raceid = v.raceid
         WHERE
-            (@surname  IS NULL OR Surname_Search  LIKE @surname  COLLATE Latin1_General_CI_AI)
-            AND (@forename IS NULL OR Forename_Search LIKE @forename COLLATE Latin1_General_CI_AI)
-            AND (@raceId   IS NULL OR raceid = @raceId)
-            AND (@category IS NULL OR Category = @category)
-            AND (@gender   IS NULL OR Sex = @gender)
-        ORDER BY RaceName, OverallPosition
+            (@surname  IS NULL OR v.Surname_Search  LIKE @surname  COLLATE Latin1_General_CI_AI)
+            AND (@forename IS NULL OR v.Forename_Search LIKE @forename COLLATE Latin1_General_CI_AI)
+            AND (@raceId   IS NULL OR v.raceid = @raceId)
+            AND (@category IS NULL OR v.Category = @category)
+            AND (@gender   IS NULL OR v.Sex = @gender)
+            AND (r.IsVisible IS NULL OR r.IsVisible = 1)
+        ORDER BY v.RaceName, v.OverallPosition
         OFFSET @offset ROWS
         FETCH NEXT @pageSize ROWS ONLY;
         """, conn);
@@ -1066,6 +1188,7 @@ app.MapGet("/swims/search", async (
     var ordCategoryPosition   = rdr.GetOrdinal("CategoryPosition");
     var ordCategoryCompetitors= rdr.GetOrdinal("CategoryCompetitors");
     var ordCategoryPercentile = rdr.GetOrdinal("CategoryPercentile");
+    var ordCanonicalRaceName  = rdr.GetOrdinal("CanonicalRaceName");
 
     while (await rdr.ReadAsync())
     {
@@ -1127,7 +1250,10 @@ app.MapGet("/swims/search", async (
                 ? (int?)null : rdr.GetInt32(ordCategoryCompetitors),
 
             categoryPercentile = rdr.IsDBNull(ordCategoryPercentile)
-                ? (decimal?)null : rdr.GetDecimal(ordCategoryPercentile)
+                ? (decimal?)null : rdr.GetDecimal(ordCategoryPercentile),
+
+            canonicalRaceName = rdr.IsDBNull(ordCanonicalRaceName)
+                ? null : rdr.GetString(ordCanonicalRaceName)
         });
     }
 
@@ -1487,10 +1613,12 @@ app.MapGet("/races/latest", async () =>
 {
     using var conn = new SqlConnection(connStr);
     var row = await conn.QueryFirstOrDefaultAsync(@"
-        SELECT TOP 1 raceid, MIN(RaceName) AS RaceName
-        FROM dbo.vw_OceanSwims_Search
-        GROUP BY raceid
-        ORDER BY MAX(RaceDate) DESC");
+        SELECT TOP 1 v.raceid, MIN(v.RaceName) AS RaceName
+        FROM dbo.vw_OceanSwims_Search v
+        LEFT JOIN dbo.Race r ON r.raceid = v.raceid
+        WHERE (r.IsVisible IS NULL OR r.IsVisible = 1)
+        GROUP BY v.raceid
+        ORDER BY MAX(v.RaceDate) DESC");
     if (row == null) return Results.NotFound();
     return Results.Ok(new { raceId = (int)row.raceid, raceName = (string)row.RaceName });
 });
@@ -1504,20 +1632,22 @@ app.MapGet("/races", async (string? q) =>
 
     var sql = @"
         SELECT
-            raceid,
-            RaceName,
-            RaceDate,
-            Distance,
+            v.raceid,
+            v.RaceName,
+            v.RaceDate,
+            v.Distance,
             COUNT(*) AS ResultCount
-        FROM dbo.vw_OceanSwims_Search
-        WHERE (@q IS NULL OR RaceName LIKE '%' + @q + '%')
+        FROM dbo.vw_OceanSwims_Search v
+        LEFT JOIN dbo.Race r ON r.raceid = v.raceid
+        WHERE (@q IS NULL OR v.RaceName LIKE '%' + @q + '%')
+            AND (r.IsVisible IS NULL OR r.IsVisible = 1)
         GROUP BY
-            raceid,
-            RaceName,
-            RaceDate,
-            Distance
+            v.raceid,
+            v.RaceName,
+            v.RaceDate,
+            v.Distance
         ORDER BY
-            RaceDate DESC, RaceName";
+            v.RaceDate DESC, v.RaceName";
 
     using var cmd = new SqlCommand(sql, conn);
     cmd.Parameters.AddWithValue("@q", (object?)q ?? DBNull.Value);
@@ -2013,6 +2143,7 @@ record ForgotPasswordRequest(string Email);
 record ResetPasswordRequest(string Token, string NewPassword);
 record UpdateSettingsRequest(bool NotifyUnclaimedResults);
 record DeleteAccountRequest(string EmailConfirmation);
+record SaveRivalRequest(string? Forename, string? Surname, List<int>? ExcludedIds);
 
 
 // ── Leaderboard refresh ──────────────────────────────────────────────────────
