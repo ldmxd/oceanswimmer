@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>My Swims – OceanSwimmer</title>
     <meta name="description" content="Your personal ocean swim profile — career stats, season trends, and every race you've claimed." />
 
@@ -292,8 +293,15 @@
 
         @media (max-width: 700px) {
             body { padding: 1rem; }
+            #site-header { margin: -1rem -1rem 1.5rem; width: calc(100% + 2rem); }
             .summary-grid { grid-template-columns: 1fr 1fr; }
+            .page-header { flex-wrap: wrap; row-gap: 8px; }
+            .page-header .site-tagline { font-size: 1.1rem !important; }
+            .page-header .back-link { margin-left: 0 !important; }
+            .auth-name { margin-left: 0; }
         }
+
+        #bestTable-wrap { overflow-x: auto; }
     </style>
 </head>
 <body>
@@ -310,7 +318,7 @@
 </div>
 
 <div class="page-header">
-    <span style="font-size:1.4rem; font-weight:700; color:#002a5a; font-family:'Dancing Script', cursive;">Your personal spreadsheet for ocean swimming results.</span>
+    <span class="site-tagline" style="font-size:1.4rem; font-weight:700; color:#002a5a; font-family:'Dancing Script', cursive;">Your personal spreadsheet for ocean swimming results.</span>
     <span id="authName" class="auth-name"></span>
     <a href="/rivalry.html" class="back-link" style="margin-left:auto;">🥊 Rivalry</a>
     <a href="/account.html" class="back-link" style="margin-left:12px;">Account</a>
@@ -364,6 +372,7 @@
                 </select>
             </div>
         </h2>
+        <div id="bestTable-wrap">
         <table id="bestTable">
             <thead>
                 <tr>
@@ -380,6 +389,7 @@
             </thead>
             <tbody id="bestBody"></tbody>
         </table>
+        </div>
     </div>
 
     <!-- Season breakdown -->

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Rivalry – OceanSwimmer</title>
     <meta name="description" content="Compare your ocean swim results head-to-head against another swimmer, race by race." />
 
@@ -236,8 +237,11 @@
 
         @media (max-width: 700px) {
             body { padding: 1rem; }
+            #site-header { margin: -1rem -1rem 1.5rem; width: calc(100% + 2rem); }
             .summary-grid { grid-template-columns: 1fr 1fr; }
         }
+
+        #reviewTable-wrap, #comparisonTable-wrap { overflow-x: auto; }
     </style>
 </head>
 <body>
@@ -298,6 +302,7 @@
             anything below that isn't actually your rival before comparing.
         </div>
         <p class="empty-note">Every result matching this name is listed below, checked by default. Untick any race that isn't really them.</p>
+        <div id="reviewTable-wrap">
         <table>
             <thead>
                 <tr>
@@ -312,6 +317,7 @@
             </thead>
             <tbody id="reviewBody"></tbody>
         </table>
+        </div>
         <button id="compareBtn" onclick="revealComparison()" style="margin-top:14px; padding:8px 18px; background:#0066cc; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer;">Compare</button>
     </div>
     <div id="reviewSummaryLine" style="display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
@@ -334,7 +340,9 @@
 <!-- Margin chart -->
 <div class="section" id="chartSection" style="display:none;">
     <h2>Margin Over Time</h2>
-    <canvas id="marginChart" height="90"></canvas>
+    <div style="position:relative; height:220px;">
+        <canvas id="marginChart"></canvas>
+    </div>
 </div>
 
 <!-- Head-to-head table -->
@@ -354,6 +362,7 @@
             </select>
         </span>
     </div>
+    <div id="comparisonTable-wrap">
     <table>
         <thead id="comparisonHead">
             <tr>
@@ -367,6 +376,7 @@
         </thead>
         <tbody id="comparisonBody"></tbody>
     </table>
+    </div>
     <p class="empty-note" id="noSharedRacesNote" style="display:none; margin-top:12px;">
         No shared races found between you and this name — you haven't raced
         the same event on the same day yet.
@@ -1001,12 +1011,16 @@
 
         if (marginChart) marginChart.destroy();
 
+        // Narrow screens can't fit long axis titles / legend labels without
+        // overlapping — use shorter text there and lean on tooltips for detail.
+        const isNarrow = window.innerWidth <= 700;
+
         marginChart = new Chart(canvas.getContext('2d'), {
             data: {
                 datasets: [
                     {
                         type: 'bar',
-                        label: 'Margin per race (minutes) — above 0 = you, below = them',
+                        label: isNarrow ? 'Margin per race (min)' : 'Margin per race (minutes) — above 0 = you, below = them',
                         data: pts,
                         backgroundColor: colors,
                         yAxisID: 'y',
@@ -1014,7 +1028,7 @@
                     },
                     {
                         type: 'line',
-                        label: "Who's in front overall — running total",
+                        label: isNarrow ? 'Running total' : "Who's in front overall — running total",
                         data: cumPts,
                         borderColor: '#0066cc',
                         backgroundColor: 'transparent',
@@ -1028,13 +1042,15 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     x: {
                         type: 'linear',
-                        title: { display: true, text: 'Race #' },
+                        title: { display: !isNarrow, text: 'Race #' },
                         ticks: {
                             stepSize: 1,
                             precision: 0,
+                            font: { size: isNarrow ? 10 : 12 },
                             // Race number alone doesn't give any sense of
                             // time, so surface the year every 10 races (plus
                             // the very first one) and hide the rest.
@@ -1050,18 +1066,20 @@
                     y: {
                         min: -barMax,
                         max: barMax,
-                        title: { display: true, text: 'Margin per race (min)' }
+                        title: { display: true, text: isNarrow ? 'Margin (min)' : 'Margin per race (min)', font: { size: isNarrow ? 10 : 12 } },
+                        ticks: { font: { size: isNarrow ? 10 : 12 } }
                     },
                     y1: {
                         position: 'right',
                         min: -cumMax,
                         max: cumMax,
-                        title: { display: true, text: "Running total (min) — above 0 = you're in front" },
+                        title: { display: true, text: isNarrow ? 'Running total (min)' : "Running total (min) — above 0 = you're in front", font: { size: isNarrow ? 10 : 12 } },
+                        ticks: { font: { size: isNarrow ? 10 : 12 } },
                         grid: { drawOnChartArea: false }
                     }
                 },
                 plugins: {
-                    legend: { display: true, labels: { boxWidth: 14, font: { size: 11 } } },
+                    legend: { display: true, position: isNarrow ? 'bottom' : 'top', labels: { boxWidth: 14, font: { size: isNarrow ? 10 : 11 } } },
                     tooltip: {
                         callbacks: {
                             title: items => {

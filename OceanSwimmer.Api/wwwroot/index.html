@@ -11,6 +11,7 @@
     </script>
 
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OceanSwimmer Results Search</title>
     <meta name="description" content="Search ocean swim race results across Australia. Claim your swims, track your progress, see how you stack up." />
 
@@ -157,6 +158,57 @@
 
         @media (max-width: 700px) {
             .auth-hint { display: none; }
+
+            body { padding: 0 1rem 1.5rem; }
+
+            #site-header { margin: 0 -1rem 1.5rem; width: calc(100% + 2rem); }
+
+            h1 { flex-wrap: wrap; row-gap: 8px; }
+
+            .site-tagline { font-size: 1.1rem !important; }
+
+            #authBar { margin-left: 0 !important; flex-wrap: wrap; row-gap: 6px; }
+            #authBar .auth-name {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 60%;
+            }
+
+            #searchForm { display: flex; flex-wrap: wrap; gap: 8px; }
+            #searchForm input { flex: 1 1 45%; min-width: 0; margin-right: 0; box-sizing: border-box; }
+            #searchForm button { flex: 0 0 auto; }
+
+            .tab-nav { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+            .tab-btn { padding: 8px 14px; font-size: 14px; white-space: nowrap; }
+
+            .lb-sub-nav { gap: 6px; }
+            .lb-sub-btn { padding: 5px 12px; font-size: 13px; }
+
+            #races-search-bar, .lb-filter-bar { flex-direction: column; align-items: stretch; }
+
+            #raceSearch,
+            #lb-name-filter,
+            #lb-races-filter {
+                width: 100% !important;
+                box-sizing: border-box;
+            }
+
+            .panel-table, .race-table, .lb-table { font-size: 12px; }
+            #resultsTable_wrapper { font-size: 13px; }
+        }
+
+        /* ── Horizontal scroll containers for wide tables on any screen ── */
+        #raceList,
+        #lb-alltime-wrap,
+        #lb-seasonal-wrap,
+        #lb-races-wrap,
+        #lb-races-seasonal-wrap,
+        #lb-loyalty-wrap,
+        #lb-podium-wrap,
+        #lb-podium-seasonal-wrap,
+        #resultsTable_wrapper {
+            overflow-x: auto;
         }
 
         /* ── Claim button ───────────────────────────────────────────── */
@@ -529,7 +581,7 @@
     </div>
 
     <h1 style="display:flex; align-items:center; margin-top: 0;">
-        <span style="font-weight:700; font-size:1.4rem; color:#002a5a; font-family:'Dancing Script', cursive;">Your personal spreadsheet for ocean swimming results.</span>
+        <span class="site-tagline" style="font-weight:700; font-size:1.4rem; color:#002a5a; font-family:'Dancing Script', cursive;">Your personal spreadsheet for ocean swimming results.</span>
         <!-- Auth bar sits on the right of the header row -->
         <div id="authBar" style="margin-left:auto;">
             <!-- populated by initAuth() -->
@@ -768,6 +820,7 @@
         let table = $('#resultsTable').DataTable({
             destroy: true,
             autoWidth: false,
+            scrollX: true,
             pageLength: 25,
             columns: [
                 // 0 Race
